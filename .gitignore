@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# This package
+.pack/
+coverage/
+*.tgz
+.env.local

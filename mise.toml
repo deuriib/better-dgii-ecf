@@ -1,0 +1,112 @@
+# mise.toml — the single entrypoint for every task in this repository.
+#
+# Nothing here is invoked directly with npm/bun/tsc: local development, git
+# hooks and CI all go through `mise run <task>`, so the toolchain and the command
+# are identical everywhere.
+#
+#   mise install     # provision the pinned toolchain
+#   mise run bootstrap
+#   mise run ci      # exactly what CI runs
+#   mise tasks       # list everything
+
+[tools]
+node = "24"
+bun = "1.4.4"
+pre-commit = "4.7.0"
+"aqua:gitleaks/gitleaks" = "8.30.1"
+
+# ---------------------------------------------------------------------------
+# Bootstrap
+# ---------------------------------------------------------------------------
+[tasks.bootstrap]
+description = "Install the pinned toolchain, dependencies and git hooks"
+depends = ["bootstrap-tools", "bootstrap-deps", "hooks-install"]
+
+[tasks.bootstrap-tools]
+description = "Provision every tool pinned in mise.toml"
+run = "mise install"
+
+[tasks.bootstrap-deps]
+description = "Install package dependencies"
+run = "bun install"
+
+# ---------------------------------------------------------------------------
+# Git hooks
+# ---------------------------------------------------------------------------
+[tasks.hooks-install]
+description = "Install the pre-commit git hooks"
+run = "pre-commit install --install-hooks && pre-commit install --hook-type commit-msg"
+
+[tasks.secrets]
+description = "Scan the repository (and its history) for credentials"
+run = "gitleaks detect --source . --redact --no-banner"
+
+[tasks.hooks]
+description = "Run every pre-commit hook over the whole repository"
+run = "pre-commit run --all-files"
+
+# ---------------------------------------------------------------------------
+# Lint / format / types
+# ---------------------------------------------------------------------------
+[tasks.lint]
+description = "Format check, typecheck and lint"
+depends = ["lint-format", "lint-types"]
+
+[tasks.lint-format]
+description = "Verify formatting with Prettier (check only)"
+run = "bunx prettier --check ."
+
+[tasks.format]
+description = "Rewrite files with Prettier"
+run = "bunx prettier --write ."
+
+[tasks.lint-types]
+description = "Typecheck the package and its tests with tsc"
+run = "bunx tsc --noEmit"
+
+# ---------------------------------------------------------------------------
+# Test
+# ---------------------------------------------------------------------------
+[tasks.test]
+description = "Run the Vitest suite once"
+run = "bunx vitest run"
+
+[tasks.test-watch]
+description = "Run Vitest in watch mode"
+run = "bunx vitest"
+
+[tasks.coverage]
+description = "Run the suite with coverage thresholds enforced"
+run = "bunx vitest run --coverage"
+
+# ---------------------------------------------------------------------------
+# Build & package validation
+# ---------------------------------------------------------------------------
+[tasks.build]
+description = "Build the ESM, CJS and type bundles into dist/"
+run = "bunx tsup"
+
+[tasks.pack]
+description = "Build the tarball npm would publish"
+run = "bunx tsup && bun pm pack --destination .pack"
+
+# `publint` catches an exports map that does not resolve; `attw` proves the
+# published types resolve under every module resolution the consumers use.
+[tasks.pack-check]
+description = "Validate the published package shape (publint + are-the-types-wrong)"
+run = "bunx tsup && bunx publint && bunx attw --pack . --profile node16"
+
+# ---------------------------------------------------------------------------
+# CI / release
+# ---------------------------------------------------------------------------
+[tasks.ci]
+description = "Everything CI runs: format, types, tests with coverage, build, pack checks"
+depends = ["lint", "coverage", "pack-check"]
+
+[tasks.publish]
+description = "Publish to npm (OIDC trusted publishing; no token on disk)"
+run = "bunx tsup && npm publish --access public --provenance"
+
+[tasks.publish-dry-run]
+description = "Exercise the publish path without uploading"
+run = "bunx tsup && npm publish --access public --dry-run"

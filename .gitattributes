@@ -1,0 +1,9 @@
+# Normalize line endings for every text file; the repository is LF-only.
+* text=auto eol=lf
+
+# Keep the lockfile out of diffs and merges: Bun owns it.
+bun.lock -diff merge=binary
+
+# Language stats on GitHub: the plugin is TypeScript, not Markdown.
+*.md linguist-documentation
+tests/** linguist-test

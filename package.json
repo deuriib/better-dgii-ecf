@@ -1,0 +1,91 @@
+{
+  "name": "@deuriib/better-dgii-ecf",
+  "version": "0.0.0",
+  "description": "Better Auth plugin for the DGII e-CF SDK \u2014 organization-scoped taxpayer resolution, server-side credential isolation and audited e-invoicing endpoints.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Deuri Vasquez <deuriib@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deuriib/better-dgii-ecf.git"
+  },
+  "homepage": "https://github.com/deuriib/better-dgii-ecf#readme",
+  "bugs": {
+    "url": "https://github.com/deuriib/better-dgii-ecf/issues"
+  },
+  "keywords": [
+    "better-auth",
+    "better-auth-plugin",
+    "dgii",
+    "ecf",
+    "facturacion-electronica",
+    "republica-dominicana",
+    "invoice",
+    "ncf",
+    "rnc",
+    "organization"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "bun@1.4.4",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./client": {
+      "import": {
+        "types": "./dist/client.d.ts",
+        "default": "./dist/client.js"
+      },
+      "require": {
+        "types": "./dist/client.d.cts",
+        "default": "./dist/client.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "mise run build",
+    "lint": "mise run lint",
+    "test": "mise run test",
+    "typecheck": "mise run lint-types",
+    "ci": "mise run ci"
+  },
+  "peerDependencies": {
+    "@deuriib/dgii-ecf": "^0.6.1",
+    "better-auth": "^1.7.22"
+  },
+  "dependencies": {
+    "@better-auth/core": "^1.7.22",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
+    "@deuriib/dgii-ecf": "^0.6.1",
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "better-auth": "^1.7.22",
+    "prettier": "^3.5.3",
+    "publint": "^0.3.12",
+    "tsup": "^8.3.5",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  }
+}
