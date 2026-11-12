@@ -42,30 +42,37 @@ A `POST /dgii-ecf/documents` with `sign: true`:
 
 1. **Session middleware.** Better Auth requires an authenticated session; the plugin
    adds nothing to that contract.
-2. **Scope resolution** (`resolveRequestScope`). The organization in scope is read
+2. **Buyer host resolution** (only when the request asks for one). `resolveBuyerHost`
+   maps a configured name to its URL; a request never supplies a URL.
+3. **Scope resolution** (`resolveRequestScope`). The organization in scope is read
    (explicit `organizationId`, else the session's active organization), its taxpayer id
    is read and normalized, and the resolution order decides the id: request →
-   organization → resolver. A missing id is a `400`.
-3. **Authorization.** Membership, role and the stored-id equality check run here,
+   organization → resolver. A missing id is a `400`; an id that fails the checksum is a
+   `400` too.
+4. **Authorization.** Membership, role and the stored-id equality check run here,
    _before_ any credential is touched. A caller who may not act for a taxpayer cannot
    learn whether credentials exist for it.
-4. **Client resolution.** `clientProvider.get(scope)` returns a cached `ECF` or builds
+5. **Client resolution.** `clientProvider.get(scope)` returns a cached `ECF` or builds
    one from the resolved key material.
-5. **Signing** (when requested). The document's root element is read, the key material
-   is resolved again for the signer, and `Signature.signXml` produces the signed
-   document. A signer failure is a `400 DGII_SIGNING_FAILED`.
-6. **Issuer check.** `RNCEmisor`/`RncEmisor` in the document must equal the resolved
+6. **e-NCF gate.** A value that claims to be an e-NCF (`E…`) is validated against DGII's
+   format; a malformed one is a `400 DGII_ENCF_INVALID` **before** a submission row
+   exists.
+7. **Signing** (when requested). The document's root element is read, the key material
+   is resolved for the signer, and `Signature.signXml` produces the signed document. A
+   signer failure is a `400 DGII_SIGNING_FAILED`.
+8. **Issuer check.** `RNCEmisor`/`RncEmisor` in the document must equal the resolved
    taxpayer, otherwise `403 DGII_TAXPAYER_ID_MISMATCH`.
-7. **Replay decision.** With persistence on, the record for
-   `(taxPayerId, idempotencyKey ?? sha256(xml))` is read: `succeeded` replays, `pending`
-   conflicts, anything else proceeds.
-8. **Pending record.** Written before transmission, so an interrupted send leaves
-   evidence instead of silence.
-9. **Transmission.** The DGII SDK performs the request with its own retry, circuit
-   breaker and timeout policies. A `Result` failure is mapped to an `APIError` and the
-   record is closed as `failed`; a success closes it as `succeeded` with the track id
-   and (optionally) the serialized answer.
-10. **Response.** The DGII payload plus the scope echo: `taxPayerId`, `organizationId`,
+9. **Replay claim.** `begin` looks up the unique `replayKey`
+   (`environment + organization + taxpayer + idempotencyKey ?? sha256(xml)`): a
+   `succeeded` record replays, an open one (`pending`/`unconfirmed`) conflicts, a
+   `failed` one is reclaimed, and a new document inserts under the unique index.
+10. **Transmission.** The DGII SDK performs the request with its own retry, circuit
+    breaker and timeout policies.
+11. **Outcome.** A definite rejection closes the record as `failed` (retry is safe); a
+    timeout, 5xx/408/429, open circuit, thrown error or unreadable 2xx closes it as
+    `unconfirmed` (only `reconcile` settles that). A readable success closes it as
+    `succeeded` with the track id and, optionally, the serialized answer.
+12. **Response.** The DGII payload plus the scope echo: `taxPayerId`, `organizationId`,
     `environment`, `submissionId`, `replayed`.
 
 Read-only endpoints run steps 1–4 and return. Status endpoints additionally require the

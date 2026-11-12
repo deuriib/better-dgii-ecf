@@ -74,7 +74,11 @@ describe('DGII failure mapping over HTTP', () => {
     const instance = await getTestInstance({
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
-        dgiiEcf({ environment: Environment.Dev, getClient: () => fake }),
+        dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
+          environment: Environment.Dev,
+          getClient: () => fake,
+        }),
       ],
     });
     auth = instance.auth;

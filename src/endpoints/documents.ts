@@ -16,6 +16,7 @@ import {
   unwrap,
 } from './shared.js';
 import { createSubmissionStore } from '../persistence.js';
+import { resolveBuyerHost } from '../buyer-delivery.js';
 
 /**
  * Document transmission endpoints.
@@ -65,17 +66,18 @@ export const sendDocument = (deps: DgiiEcfEndpointDeps) =>
     '/dgii-ecf/documents',
     {
       method: 'POST',
-      body: z.object({
+      body: z.strictObject({
         ...documentShape,
-        buyerHost: z.string().url().optional().meta({
+        buyer: z.string().min(1).optional().meta({
           description:
-            'Deliver directly to the buyer Sender↔Receiver host instead of DGII.',
+            'Name of a configured buyer host (`buyerDelivery.hosts`) to deliver to directly instead of DGII. A URL is never accepted from a request.',
         }),
       }),
       use: [sessionMiddleware],
     },
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
+      const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
       const xml =
         ctx.body.sign === true
           ? await signDocument(deps, scope, ctx.body.xml)
@@ -93,7 +95,7 @@ export const sendDocument = (deps: DgiiEcfEndpointDeps) =>
           client.sendDocument(
             xml,
             ctx.body.fileName ?? fileNameFor(xml, 'document'),
-            ctx.body.buyerHost,
+            buyerHost,
           ),
       });
 
@@ -112,14 +114,15 @@ export const sendElectronicDocument = (deps: DgiiEcfEndpointDeps) =>
     '/dgii-ecf/documents/electronic',
     {
       method: 'POST',
-      body: z.object({
+      body: z.strictObject({
         ...documentShape,
-        buyerHost: z.string().url().optional(),
+        buyer: z.string().min(1).optional(),
       }),
       use: [sessionMiddleware],
     },
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
+      const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
       const xml =
         ctx.body.sign === true
           ? await signDocument(deps, scope, ctx.body.xml)
@@ -137,7 +140,7 @@ export const sendElectronicDocument = (deps: DgiiEcfEndpointDeps) =>
           client.sendElectronicDocument(
             xml,
             ctx.body.fileName ?? fileNameFor(xml, 'ecf'),
-            ctx.body.buyerHost,
+            buyerHost,
           ),
       });
 
@@ -156,7 +159,7 @@ export const sendSummary = (deps: DgiiEcfEndpointDeps) =>
     '/dgii-ecf/documents/summary',
     {
       method: 'POST',
-      body: z.object(documentShape),
+      body: z.strictObject(documentShape),
       use: [sessionMiddleware],
     },
     async (ctx) => {
@@ -193,10 +196,11 @@ export const sendCommercialApproval = (deps: DgiiEcfEndpointDeps) =>
     '/dgii-ecf/documents/commercial-approval',
     {
       method: 'POST',
-      body: z.object({
+      body: z.strictObject({
         ...documentShape,
-        buyerHost: z.string().url().optional().meta({
-          description: 'Deliver the approval directly to the issuer host.',
+        buyer: z.string().min(1).optional().meta({
+          description:
+            'Name of a configured buyer host (`buyerDelivery.hosts`) to deliver the approval directly.',
         }),
       }),
       use: [sessionMiddleware],
@@ -209,7 +213,7 @@ export const sendCommercialApproval = (deps: DgiiEcfEndpointDeps) =>
           : ctx.body.xml;
       assertIssuer(xml, scope.taxPayerId);
 
-      const buyerHost = ctx.body.buyerHost;
+      const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
       const outcome = await runSubmission<
         CommercialApprovalResponse | B2BCommercialApprovalResponse
       >({
@@ -242,7 +246,7 @@ export const voidENCF = (deps: DgiiEcfEndpointDeps) =>
     '/dgii-ecf/documents/void-range',
     {
       method: 'POST',
-      body: z.object(documentShape),
+      body: z.strictObject(documentShape),
       use: [sessionMiddleware],
     },
     async (ctx) => {

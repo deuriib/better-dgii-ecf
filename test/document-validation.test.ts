@@ -14,7 +14,11 @@ const build = async () => {
   const instance = await getTestInstance({
     plugins: [
       organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
-      dgiiEcf({ environment: Environment.Dev, getClient: () => fake }),
+      dgiiEcf({
+        verifyTaxPayerOwnership: () => true,
+        environment: Environment.Dev,
+        getClient: () => fake,
+      }),
     ],
   });
   const { headers } = await instance.signInWithTestUser();

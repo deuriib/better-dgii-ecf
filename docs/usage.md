@@ -158,6 +158,35 @@ dgiiEcf({ validateTaxPayerId: (id) => canonicalRnc(id) }); // rewrite or reject
 A validator returning a string **replaces** the id — that is how an alias becomes its
 canonical RNC.
 
+### Ownership verification
+
+The organization field is the tenant boundary: "this organization owns this RNC" is what
+stops one tenant from invoicing as another. A field an admin can write is not evidence
+of ownership, so the plugin refuses to let it change without a check only the host can
+perform:
+
+```ts
+dgiiEcf({
+  credentials: resolveCredentials,
+  verifyTaxPayerOwnership: async ({ taxPayerId, organizationId, user }) => {
+    // Against your onboarding record, DGII's registry, or the certificate you issued.
+    return onboardedTaxpayers.has(taxPayerId);
+  },
+});
+```
+
+| Situation                                     | Result                                                       |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| hook returns `true`                           | the write proceeds                                           |
+| hook returns `false`                          | `403 DGII_OWNERSHIP_UNVERIFIED`                              |
+| no hook configured, write attempted           | `403 DGII_OWNERSHIP_UNVERIFIED` — the default is closed      |
+| clearing the field (`null`)                   | allowed: the organization simply stops being able to invoice |
+| field read-only (`organization.extendSchema`) | no write to guard; the hook is unnecessary                   |
+
+The guard is on the **write path** (`/organization/create`, `/organization/update`), not
+on every read: if every write went through it, the stored value is as trustworthy as
+your verification.
+
 ## Credentials
 
 Two ways to give the plugin a DGII client. Exactly one is required; the plugin throws
@@ -204,6 +233,35 @@ dgiiEcf({
 Nothing is cached and `clientCache` is ignored. With this mode the plugin cannot sign
 (`sign: true` answers `500 DGII_CREDENTIALS_UNAVAILABLE`), because signing needs the key
 material and the key stayed with you.
+
+## Direct buyer delivery
+
+DGII's Emisor↔Receptor flow delivers a document to the buyer's own host instead of DGII.
+The SDK authenticates against that host by posting a signature made with the
+organization's private key, so **the URL can never come from a request**: accepting it
+would be an SSRF primitive and a signature oracle in one.
+
+Configure the hosts by name, and let a request select a name:
+
+```ts
+dgiiEcf({
+  credentials: resolveCredentials,
+  buyerDelivery: { hosts: { acme: 'https://fe.acme.com' } },
+});
+```
+
+```ts
+await authClient.dgiiEcf.documents({ xml, buyer: 'acme' });
+```
+
+| Situation                                       | Result                                                 |
+| ----------------------------------------------- | ------------------------------------------------------ |
+| `buyer` names a configured host                 | delivered there                                        |
+| `buyer` names an unknown host                   | `400 DGII_BUYER_HOST_NOT_ALLOWED`, nothing transmitted |
+| `buyer` sent with no `buyerDelivery` configured | `400 DGII_BUYER_HOST_NOT_ALLOWED`                      |
+| a host is not an absolute `https` URL           | refused when the plugin is constructed                 |
+
+The configured URLs are never echoed back in an error: only the names are.
 
 ## Environments
 

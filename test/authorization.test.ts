@@ -30,7 +30,11 @@ describe('authorization', () => {
     instance = await getTestInstance({
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
-        dgiiEcf({ environment: Environment.Dev, getClient: () => fake }),
+        dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
+          environment: Environment.Dev,
+          getClient: () => fake,
+        }),
       ],
     });
     auth = instance.auth;
@@ -109,6 +113,7 @@ describe('authorization', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           roles: ['member'],
@@ -155,7 +160,11 @@ describe('authorization', () => {
     const instance = await getTestInstance({
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
-        dgiiEcf({ environment: Environment.Dev, getClient: () => fake }),
+        dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
+          environment: Environment.Dev,
+          getClient: () => fake,
+        }),
       ],
     });
     const { headers } = await instance.signInWithTestUser();
@@ -175,6 +184,7 @@ describe('authorization', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           allowUntrustedTaxPayerId: true,
@@ -196,6 +206,7 @@ describe('authorization', () => {
       plugins: [
         organization(),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           organization: { extendSchema: true },

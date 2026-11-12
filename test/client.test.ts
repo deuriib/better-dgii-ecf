@@ -26,7 +26,11 @@ describe('client plugin', () => {
       {
         plugins: [
           organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
-          dgiiEcf({ environment: Environment.Dev, getClient: () => fake }),
+          dgiiEcf({
+            verifyTaxPayerOwnership: () => true,
+            environment: Environment.Dev,
+            getClient: () => fake,
+          }),
         ],
       },
       { clientOptions: { plugins: [dgiiEcfClient()] } },

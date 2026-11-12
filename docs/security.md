@@ -36,6 +36,20 @@ client would hand over the ability to submit documents as that taxpayer. The sam
 applies to failures: the error mapping strips `data`, which on the authentication
 endpoints is the body that carries the token.
 
+### The tenant id cannot be forged by editing the organization
+
+The field that binds a tenant to a taxpayer is writable — the organization plugin owns
+its input schema — so the plugin guards the write: setting it requires
+`verifyTaxPayerOwnership`, and a write without a verification is refused. That closes
+the escalation where an organization admin claims any RNC and invoices as that taxpayer.
+
+### A request cannot choose where the certificate is sent
+
+Direct buyer delivery authenticates against a buyer host by posting a signature made
+with the organization's private key. The URL therefore comes from `buyerDelivery.hosts`,
+never from a request: a request selects a configured name. Accepts HTTPS only, validates
+the configuration at construction, and never echoes the configured URLs back.
+
 ### The document issuer must match the authorized taxpayer
 
 Submitting a document whose `RNCEmisor` differs from the resolved taxpayer is refused
