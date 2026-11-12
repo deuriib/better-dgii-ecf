@@ -91,6 +91,28 @@ at all. With trusted publishing the two usual causes are:
 Both are fixed without touching the tag: configure the publisher and re-dispatch the
 workflow.
 
+### The version published, but `latest` points at another
+
+Two publishes that overlap — a tag push and a manual dispatch, or two releases cut close
+together — leave `latest` decided by whichever finished last, which is not necessarily
+the highest version. `publish.yml` now runs publishes one at a time for that reason, and
+it verifies the tag after uploading.
+
+OIDC publishing cannot move a dist-tag, so the correction is one command with a normal
+login:
+
+```bash
+npm login
+npm dist-tag add @deuriib/better-dgii-ecf@<version> latest
+npm logout
+```
+
+Check which version is tagged:
+
+```bash
+npm view @deuriib/better-dgii-ecf dist-tags
+```
+
 ```bash
 gh workflow run publish.yml --repo deuriib/better-dgii-ecf --ref v0.1.0 -f ref=v0.1.0
 ```
