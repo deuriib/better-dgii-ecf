@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/deuriib/better-dgii-ecf/compare/v0.2.0...v0.3.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **security:** `buyerHost` is gone in favour of `buyer` + `buyerDelivery.hosts`, and `organization.create`/`update` refuse a taxpayer id unless `verifyTaxPayerOwnership` is configured. Hosts that keep the field read-only (`organization.extendSchema: true`) need no change beyond the removal of `buyerHost`.
+
+### Bug Fixes
+
+* **security:** stop letting a request choose a delivery URL or an organization claim an RNC ([447bdec](https://github.com/deuriib/better-dgii-ecf/commit/447bdec9f34e29489e233fdb06934d34bc93ea87))
+
 ## [0.2.0](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.6...v0.2.0) (2026-11-12)
 
 
