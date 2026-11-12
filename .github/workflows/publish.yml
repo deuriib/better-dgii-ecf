@@ -58,7 +58,38 @@ jobs:
         run: mise run coverage
 
       - name: Build and publish
-        run: mise run publish
+        run: |
+          set +e
+          mise run publish
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cat >&2 <<'DIAGNOSIS'
+          ────────────────────────────────────────────────────────────────────────
+          npm could not authenticate to the registry.
+
+          Trusted publishing has two prerequisites, and both fail here:
+
+            1. The package must exist on npm (a first publish cannot use OIDC).
+            2. A trusted publisher must be configured for THIS workflow file:
+
+                 npm trust github "@deuriib/better-dgii-ecf" \
+                   --file publish.yml \
+                   --repo deuriib/better-dgii-ecf \
+                   --allow-publish
+
+               `--file` takes the workflow filename, not a path. 2FA is required.
+
+          Verify with `npm trust list @deuriib/better-dgii-ecf`, then re-dispatch
+          this workflow — the tag does not need to move:
+
+                 gh workflow run publish.yml --ref <tag> -f ref=<tag>
+
+          See docs/releasing.md.
+          ────────────────────────────────────────────────────────────────────────
+          DIAGNOSIS
+            exit "$status"
+          fi
 
       - name: Verify the published attestation
         run: |

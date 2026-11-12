@@ -1,0 +1,4 @@
+# release-please owns this file: it appends generated sections on every release, so
+# formatting it here only creates a conflict the next release has to resolve. The
+# generated shape is valid Markdown; the formatter opinion is not worth the churn.
+CHANGELOG.md
