@@ -116,11 +116,15 @@ jobs:
           version=$(node -p "require('./package.json').version")
           registry="${NPM_REGISTRY:-https://registry.npmjs.org}"
 
-          # Read the registry document directly instead of through `npm view`.
-          # npm caches metadata responses, so an immediate read after publishing
-          # served a stale 404 for a full minute even though the version existed —
-          # a false failure on a successful publish. `Cache-Control: no-cache` and
-          # no local cache make this read the registry's current answer.
+          # Publishing is asynchronous on npm: the upload is accepted, provenance
+          # is written to the transparency log, and npm answers "your package is
+          # being processed and may take a few minutes to become available". The
+          # version therefore does not exist at read time, and an immediate check
+          # reports a false failure on a publish that already succeeded.
+          #
+          # So this polls for minutes, not seconds, and reads the registry document
+          # directly (no npm cache in the path) so each attempt is the registry's
+          # current answer rather than a replayed one.
           read_registry() {
             curl -fsS --max-time 20 \
               -H 'Accept: application/json' \
@@ -144,19 +148,28 @@ jobs:
           # `@scope/name` is addressed as `@scope%2fname` on the registry.
           encoded=$(printf '%s' "$package" | sed 's|/|%2f|')
 
+          # 20 × 15s = 5 minutes, which covers npm's processing window with room to
+          # spare. Overridable so the logic can be exercised without waiting.
+          max_attempts="${VERIFY_MAX_ATTEMPTS:-20}"
+          delay_seconds="${VERIFY_DELAY_SECONDS:-15}"
+
           info=""
           attempt=1
-          while [ "$attempt" -le 8 ]; do
+          while [ "$attempt" -le "$max_attempts" ]; do
             if info=$(read_registry "$encoded" "$version"); then
               break
             fi
-            echo "waiting for $package@$version in the registry (attempt $attempt/8)"
-            sleep 5
+            # One line every 4 attempts: visible without flooding the log.
+            if [ "$attempt" -eq 1 ] || [ $((attempt % 4)) -eq 0 ]; then
+              echo "npm is still processing $package@$version (attempt $attempt/$max_attempts)"
+            fi
+            sleep "$delay_seconds"
             attempt=$((attempt + 1))
           done
 
           if [ -z "$info" ]; then
-            echo "::error::$package@$version never appeared in the registry"
+            echo "::error::$package@$version did not become available within $((max_attempts * delay_seconds))s"
+            echo "Publishing is asynchronous: check https://www.npmjs.com/package/$package before re-releasing."
             exit 1
           fi
 
