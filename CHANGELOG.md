@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.1...v0.1.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **release:** identify the missing publish prerequisite and detect version drift ([#13](https://github.com/deuriib/better-dgii-ecf/issues/13)) ([1f91599](https://github.com/deuriib/better-dgii-ecf/commit/1f915991ffbeefb3f45e5e5c9a677c8c03066fbc))
+
 ## [0.1.1](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.0...v0.1.1) (2026-11-12)
 
 
