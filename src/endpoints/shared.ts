@@ -61,9 +61,11 @@ export const prepare = async (
 /**
  * Unwrap a DGII SDK result, mapping a failure to an `APIError`.
  *
- * The SDK never throws domain errors; it returns `Result`. This is the single
- * place that turns `Err` into an HTTP response, so the status mapping stays
- * consistent across every endpoint.
+ * SDK calls return `Result` rather than raising domain errors, but this
+ * boundary does throw: `unwrap` (below) turns `Err` into an `APIError`, and
+ * `signXml` can raise if signing fails. This is the single place that maps
+ * `Err` into an HTTP response, so the status mapping stays consistent across
+ * every endpoint.
  */
 export const unwrap = <T>(result: DgiiResult<T>): T => {
   if (result.isErr()) {

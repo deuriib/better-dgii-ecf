@@ -3,9 +3,10 @@
  *
  * The plugin never parses a full document: it needs two facts — which taxpayer
  * issued it, and which root element it is — and both are readable with a single
- * match. This mirrors the DGII SDK's internal readers so both layers agree on
- * what a document says, without the plugin reaching into the SDK's non-public
- * modules.
+ * match. The readers do NOT mirror the DGII SDK's: the two layers disagree on
+ * duplicate elements, CDATA and entities (issue #26), so nothing here assumes
+ * they agree — the plugin scans for these two facts itself instead of reaching
+ * into the SDK's non-public modules.
  *
  * Two properties are load-bearing:
  *

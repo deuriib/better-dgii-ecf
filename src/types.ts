@@ -176,10 +176,11 @@ export interface DgiiEcfOptions {
    */
   allowUntrustedTaxPayerId?: boolean;
   /**
-   * Taxpayer id validation policy. Defaults to `checksum`: shape plus the DGII
-   * check digit for 9-digit RNCs (measured at 100% over DGII's public registry).
-   * An 11-digit id is shape-checked only, because the cédula check refuses 41
-   * taxpayers that registry contains.
+   * Taxpayer id validation policy. Defaults to `format` (shape only) — the value
+   * `resolveRequestScope` applies when the option is unset. Opt into `checksum`
+   * to also verify the DGII check digit for 9-digit RNCs (measured at 100% over
+   * DGII's public registry); an 11-digit id is shape-checked either way, because
+   * the cédula check refuses 41 taxpayers that registry contains.
    */
   validateTaxPayerId?: TaxPayerIdValidation;
   /** Submission persistence and idempotency. */
