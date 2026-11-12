@@ -1,0 +1,87 @@
+name: release-drift
+
+# A release can be cut on GitHub while npm never receives the artifact: the tag is
+# created by release-please, and the publish can fail on a configuration problem
+# (a missing trusted publisher, for instance). Nothing then connects "the version
+# in the repository" to "the version people install", so this job does.
+#
+# It reports by opening an issue rather than by failing: a red scheduled run is
+# easy to ignore, an issue with the diagnosis is not.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  compare:
+    name: Compare the released version with npm
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The latest tag is read from history, not from a shallow clone.
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v5
+        with:
+          install: true
+
+      - name: Compare
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          name=$(node -p "require('./package.json').name")
+          local_version=$(node -p "require('./package.json').version")
+          latest_tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo 'none')
+          published=$(npm view "$name" version 2>/dev/null || echo 'none')
+
+          echo "package.json=${local_version} latest_tag=${latest_tag} npm=${published}"
+
+          if [ "$published" = "$local_version" ]; then
+            echo "npm and the repository agree on ${local_version}"
+            exit 0
+          fi
+
+          title="release drift: npm has ${published}, the repository is at ${local_version}"
+
+          if gh issue list --state open --json title --jq '.[].title' | grep -Fxq "$title"; then
+            echo "an open issue already tracks this drift"
+            exit 0
+          fi
+
+          body=$(cat <<EOF
+          \`package.json\` is at **${local_version}** and the latest tag is **${latest_tag}**,
+          but the registry serves **${published}**.
+
+          That means a release was cut on GitHub and the publish did not complete. The
+          tag does not need to move and history does not need rewriting: fix the cause
+          and re-dispatch the workflow.
+
+          Check the last publish run:
+
+          \`\`\`bash
+          gh run list --workflow=publish.yml --limit 5
+          \`\`\`
+
+          The two usual causes, and how to tell them apart, are in
+          ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/main/docs/releasing.md#troubleshooting-the-first-publish
+          In short: \`ENEEDAUTH\` means either no trusted publisher names \`publish.yml\`
+          or the job is missing \`id-token: write\`; the failing step now prints which.
+
+          Re-dispatch once fixed:
+
+          \`\`\`bash
+          gh workflow run publish.yml --ref main -f ref=${latest_tag}
+          \`\`\`
+
+          Close this issue when \`npm view ${name} version\` matches \`${latest_tag}\`.
+          EOF
+          )
+
+          gh issue create --title "$title" --body "$body"

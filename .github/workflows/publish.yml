@@ -67,27 +67,38 @@ jobs:
             cat >&2 <<'DIAGNOSIS'
           ────────────────────────────────────────────────────────────────────────
           npm could not authenticate to the registry.
-
-          Trusted publishing has two prerequisites, and both fail here:
-
-            1. The package must exist on npm (a first publish cannot use OIDC).
-            2. A trusted publisher must be configured for THIS workflow file:
+          DIAGNOSIS
+            # Which of the two causes is it? The job can answer that itself: with
+            # `id-token: write`, GitHub exposes a request URL for the OIDC token
+            # (the token itself is never printed here).
+            if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+              cat >&2 <<'NO_PUBLISHER'
+          GitHub DID expose an OIDC token endpoint, so the workflow is entitled to
+          authenticate — the missing piece is the trusted publisher on npm:
 
                  npm trust github "@deuriib/better-dgii-ecf" \
                    --file publish.yml \
                    --repo deuriib/better-dgii-ecf \
                    --allow-publish
 
-               `--file` takes the workflow filename, not a path. 2FA is required.
+          `--file` takes the workflow filename, not a path (2FA is required).
+          Verify with `npm trust list @deuriib/better-dgii-ecf`.
+          NO_PUBLISHER
+            else
+              cat >&2 <<'NO_OIDC'
+          GitHub did NOT expose an OIDC token endpoint, so the job is missing
+          `permissions: id-token: write`. Trusted publishing cannot work without it,
+          and the npm side may already be configured correctly.
+          NO_OIDC
+            fi
+            cat >&2 <<'RETRY'
+          Re-dispatch without moving the tag (the tests run again first):
 
-          Verify with `npm trust list @deuriib/better-dgii-ecf`, then re-dispatch
-          this workflow — the tag does not need to move:
-
-                 gh workflow run publish.yml --ref <tag> -f ref=<tag>
+                 gh workflow run publish.yml --ref main -f ref=<tag>
 
           See docs/releasing.md.
           ────────────────────────────────────────────────────────────────────────
-          DIAGNOSIS
+          RETRY
             exit "$status"
           fi
 
