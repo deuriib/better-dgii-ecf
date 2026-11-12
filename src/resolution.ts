@@ -107,9 +107,12 @@ const environmentOf = async (
  * 2. The organization's stored field — the organization-plugin mode.
  * 3. The configured `resolveTaxPayerId` resolver — the user/tenant mapping mode.
  *
- * Authorization happens after resolution, never before: a request-supplied id is
- * checked against the organization's stored id and the caller's role, so naming
- * a taxpayer in the body cannot grant access to it.
+ * Authorization happens after resolution, never before — with the organization
+ * plugin installed, a request-supplied id is checked against the organization's
+ * stored id and the caller's role, so naming a taxpayer in the body cannot grant
+ * access to it. Without the plugin there is no tenant model to check against,
+ * and request-supplied ids are accepted (the documented single-tenant mode; see
+ * `allowUntrustedTaxPayerId`).
  */
 export const resolveRequestScope = async ({
   ctx,

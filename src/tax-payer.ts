@@ -55,11 +55,12 @@ export type TaxPayerIdValidator = (
 /**
  * How strictly a resolved taxpayer id is checked.
  *
- * - `checksum` (default) — shape, plus the DGII check digit for 9-digit RNCs.
+ * - `checksum` — shape, plus the DGII check digit for 9-digit RNCs.
  *   An 11-digit id is shape-checked only; see the file comment for the measured
  *   reason.
- * - `format` — shape only. Use it when a corpus of your own validates better
- *   than DGII's registry does.
+ * - `format` (the default the plugin applies when the option is unset) — shape
+ *   only. Use it when a corpus of your own validates better than DGII's
+ *   registry does.
  * - `off` — normalize and accept.
  * - a function — your rule; returning a string replaces the id.
  */
