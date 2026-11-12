@@ -1,0 +1,51 @@
+# pre-commit hooks.
+#
+# Install with `mise run hooks-install`; run everything with `mise run hooks`.
+# Every hook invokes a mise task, so the hook and CI run the same command with the
+# same pinned toolchain.
+
+minimum_pre_commit_version: '4.0.0'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: mise-format
+        name: prettier (mise run lint-format)
+        entry: mise run lint-format
+        language: system
+        pass_filenames: false
+      - id: mise-types
+        name: typecheck (mise run lint-types)
+        entry: mise run lint-types
+        language: system
+        pass_filenames: false
+      # A certificate or a token committed by accident must fail before the commit
+      # exists, not after it is pushed.
+      - id: mise-secrets
+        name: gitleaks (mise run secrets)
+        entry: mise run secrets
+        language: system
+        pass_filenames: false
+      # release-please derives versions from commit messages; a malformed subject
+      # silently produces no release.
+      - id: commit-message
+        name: conventional commit subject
+        entry: scripts/check-commit-msg.sh
+        language: system
+        stages: [commit-msg]
