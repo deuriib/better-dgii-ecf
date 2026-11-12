@@ -22,6 +22,10 @@ export const DGII_ECF_ERROR_CODES = defineErrorCodes({
     'The signed document was issued under a taxpayer id other than the one resolved for this request',
   DGII_TAXPAYER_ID_FORBIDDEN:
     'This session is not allowed to act on behalf of the requested taxpayer id',
+  DGII_BUYER_HOST_NOT_ALLOWED:
+    'Direct buyer delivery needs a configured buyer host; a request cannot supply a delivery URL',
+  DGII_OWNERSHIP_UNVERIFIED:
+    'The organization taxpayer id cannot be set or trusted without ownership verification',
   DGII_ORGANIZATION_NOT_FOUND: 'The organization in scope was not found',
   DGII_ORGANIZATION_REQUIRED:
     'This request needs an organization: send `organizationId` or select an active organization',

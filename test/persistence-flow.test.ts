@@ -30,6 +30,7 @@ describe('submission persistence', () => {
           schema: { organization: dgiiEcfOrganizationSchema() },
         }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           status: { apiKey: 'status-key' },

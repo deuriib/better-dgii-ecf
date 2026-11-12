@@ -24,9 +24,12 @@ describe('endpoint surface', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           status: { apiKey: 'status-key' },
+          // Buyer delivery is configured by the operator; a request only names it.
+          buyerDelivery: { hosts: { acme: 'https://buyer.example.test' } },
         }),
       ],
     });
@@ -95,11 +98,11 @@ describe('endpoint surface', () => {
     });
   });
 
-  it('sends a commercial approval to a buyer host', async () => {
+  it('sends a commercial approval to a configured buyer host', async () => {
     const response = await auth.api.dgiiEcfSendCommercialApproval({
       body: {
         xml: documentXml(TAXPAYER_A, 'E310000000303', 'ACECF'),
-        buyerHost: 'https://buyer.example.test',
+        buyer: 'acme',
       },
       headers,
     });
@@ -110,11 +113,11 @@ describe('endpoint surface', () => {
     });
   });
 
-  it('delivers a document to a buyer host when one is given', async () => {
+  it('delivers a document to a configured buyer host', async () => {
     await auth.api.dgiiEcfSendDocument({
       body: {
         xml: documentXml(TAXPAYER_A, 'E310000000304'),
-        buyerHost: 'https://buyer.example.test',
+        buyer: 'acme',
       },
       headers,
     });

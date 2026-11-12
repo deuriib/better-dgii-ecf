@@ -1,6 +1,8 @@
 import type { BetterAuthPlugin } from 'better-auth';
 import type { DBFieldAttribute } from '@better-auth/core/db';
 import { createClientProvider, type DgiiEcfClientProvider } from './client-provider.js';
+import { assertBuyerDeliveryConfig } from './buyer-delivery.js';
+import { organizationTaxPayerIdGuard } from './ownership.js';
 import { DGII_ECF_ERROR_CODES } from './errors.js';
 import { SUBMISSION_MODEL } from './persistence.js';
 import type { DgiiEcfOptions } from './types.js';
@@ -91,6 +93,9 @@ export const dgiiEcfOrganizationSchema = (
  * it does not model invoices.
  */
 export const dgiiEcf = (options: DgiiEcfOptions = {}) => {
+  // Configuration errors belong at construction, not on the first invoice.
+  assertBuyerDeliveryConfig(options);
+
   // Built once: the provider owns the client cache, so it must outlive requests.
   const provider = createClientProvider(options);
   const deps = { options, provider } as const;
@@ -146,6 +151,9 @@ export const dgiiEcf = (options: DgiiEcfOptions = {}) => {
     id: 'dgii-ecf',
     $ERROR_CODES: DGII_ECF_ERROR_CODES,
     schema,
+    hooks: {
+      before: [organizationTaxPayerIdGuard(options)],
+    },
     endpoints: {
       // Identity
       dgiiEcfResolveTaxPayer: resolveTaxPayer(deps),
