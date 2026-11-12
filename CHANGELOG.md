@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.2...v0.1.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **release:** publish one version at a time and check the latest tag ([#15](https://github.com/deuriib/better-dgii-ecf/issues/15)) ([4f45fdb](https://github.com/deuriib/better-dgii-ecf/commit/4f45fdb1c343c6ca5d5cbbedffc34f6c7338a5a2))
+
 ## [0.1.2](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.1...v0.1.2) (2026-11-12)
 
 
