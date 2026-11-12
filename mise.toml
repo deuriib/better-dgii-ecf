@@ -86,6 +86,10 @@ run = "bunx vitest run --coverage"
 description = "Build the ESM, CJS and type bundles into dist/"
 run = "bunx tsup"
 
+[tasks.smoke]
+description = "Import the built artifact and exercise its public surface"
+run = "bunx tsup && node scripts/smoke.mjs"
+
 [tasks.pack]
 description = "Build the tarball npm would publish"
 run = "bunx tsup && bun pm pack --destination .pack"
