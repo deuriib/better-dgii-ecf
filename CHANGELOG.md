@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.5...v0.1.6) (2026-11-12)
+
+
+### Bug Fixes
+
+* **replay:** distinguish "rejected" from "we do not know", and let reconcile close it ([#42](https://github.com/deuriib/better-dgii-ecf/issues/42)) ([da6f68b](https://github.com/deuriib/better-dgii-ecf/commit/da6f68bb00f0d628cefa95c8ba5b5ad75b2bb6ef))
+
 ## [0.1.5](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.4...v0.1.5) (2026-11-12)
 
 
