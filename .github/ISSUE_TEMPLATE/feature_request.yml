@@ -1,6 +1,6 @@
 name: Feature request
 description: Propose a capability the plugin does not have yet.
-labels: ['enhancement', 'needs triage']
+labels: ['enhancement', 'triage']
 body:
   - type: textarea
     id: problem
