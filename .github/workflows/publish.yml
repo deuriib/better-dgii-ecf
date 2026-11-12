@@ -1,0 +1,69 @@
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  # release-please tags with GITHUB_TOKEN, and GitHub suppresses the events it
+  # creates — `workflow_dispatch` is exempt, so the release workflow dispatches
+  # this one explicitly. No PAT is needed.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag to publish (defaults to the dispatched ref)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to npm (OIDC trusted publishing)
+    runs-on: ubuntu-24.04
+    # Trusted publishing: no NPM_TOKEN anywhere. npm exchanges the GitHub OIDC
+    # token for a short-lived, workflow-scoped publish credential, and the
+    # resulting tarball carries a provenance attestation.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+
+      - name: Assert a trusted-publishing-capable npm
+        run: |
+          set -eu
+          npm_version=$(npm --version)
+          echo "npm $npm_version"
+          # Trusted publishing requires npm >= 11.5.1.
+          node -e '
+            const [major, minor, patch] = process.argv[1].split(".").map(Number);
+            const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)));
+            if (!ok) {
+              console.error(`npm ${process.argv[1]} is too old for trusted publishing (need >= 11.5.1)`);
+              process.exit(1);
+            }
+          ' "$npm_version"
+
+      - name: Install dependencies
+        run: mise run bootstrap-deps
+
+      # Re-prove the artifact before publishing it: a tag is not evidence.
+      - name: Tests
+        run: mise run coverage
+
+      - name: Build and publish
+        run: mise run publish
+
+      - name: Verify the published attestation
+        run: |
+          set -eu
+          package=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          echo "Published $package@$version"
+          npm view "$package@$version" dist.integrity

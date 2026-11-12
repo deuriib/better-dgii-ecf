@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "better-auth": {
+      "enabled": true,
+      "exposure": "direct"
+    },
+    "better-fullstack": {
+      "enabled": true
+    }
+  }
+}

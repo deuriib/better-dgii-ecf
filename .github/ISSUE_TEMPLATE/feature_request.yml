@@ -1,0 +1,37 @@
+name: Feature request
+description: Propose a capability the plugin does not have yet.
+labels: ['enhancement', 'needs triage']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you unable to do today, and what does it cost you?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: |
+        What should the plugin do? If it is a new endpoint, note which DGII service it
+        maps to and whether it transmits anything (that decides if it needs the replay
+        guard and the audit trail).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description:
+        Configuration, a custom `authorize`, `getClient`, or doing it in the
+        application.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label:
+            This does not require the plugin to build or validate invoice documents (out
+            of scope by design).
+          required: true

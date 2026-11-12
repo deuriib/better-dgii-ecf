@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in the plugin behaves differently from its documentation.
+labels: ['bug', 'needs triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste certificates, private keys, DGII tokens or real taxpayer
+        data.** Redact everything before submitting. Security issues go to
+        SECURITY.md, not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: The smallest plugin configuration and request that shows the problem.
+      render: ts
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description:
+        '`@deuriib/better-dgii-ecf`, `better-auth`, `@deuriib/dgii-ecf`, Node/Bun'
+      placeholder: '0.1.0 / 1.7.22 / 0.6.1 / Node 24.22'
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Integration mode
+      options:
+        - Organization plugin (taxPayerId on the organization)
+        - Per-call taxpayer id
+        - Resolver (`resolveTaxPayerId`)
+        - Custom `authorize`
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error body
+      description:
+        The `code` and `message` from the response, with anything sensitive removed.
+      render: json

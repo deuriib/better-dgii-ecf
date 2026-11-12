@@ -1,0 +1,78 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A superseded run on the same ref has no value: cancel it instead of spending
+# minutes on a commit nobody will merge.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: mise run ci
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks scans history, so the default shallow clone is not enough.
+          fetch-depth: 0
+
+      # The toolchain comes from mise.toml, so CI and a laptop run the same Node,
+      # Bun, Prettier, tsc and Vitest.
+      - uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+
+      - name: Install dependencies
+        run: mise run bootstrap-deps
+
+      - name: Secrets scan
+        run: mise run secrets
+
+      # Format check, typecheck, coverage thresholds, build, publint + attw.
+      - name: Full CI
+        run: mise run ci
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # `engines.node` claims >= 20, and the test suite cannot prove it: Better Auth's
+  # test instance boots `node:sqlite`, which exists from Node 22 on. That is a
+  # limitation of the tests, not of the artifact — so the artifact is what gets
+  # exercised on the floor, by importing the real ESM and CJS builds.
+  compat:
+    name: artifact on Node ${{ matrix.node }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+
+      - name: Install dependencies
+        run: mise run bootstrap-deps
+
+      - name: Build and smoke the artifact
+        run: mise run smoke
+        env:
+          MISE_NODE_VERSION: ${{ matrix.node }}

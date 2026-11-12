@@ -1,0 +1,8 @@
+# Every path is owned by the maintainer: this package handles certificates and
+# fiscal documents, so a review by someone who has not read SECURITY.md is not
+# enough for a merge.
+* @deuriib
+
+/.github/ @deuriib
+/SECURITY.md @deuriib
+/src/ @deuriib
