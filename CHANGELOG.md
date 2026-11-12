@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.6...v0.2.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **validation:** enforce the RNC check digit and the e-NCF format ([#45](https://github.com/deuriib/better-dgii-ecf/issues/45))
+
+### Features
+
+* **validation:** enforce the RNC check digit and the e-NCF format ([#45](https://github.com/deuriib/better-dgii-ecf/issues/45)) ([309863c](https://github.com/deuriib/better-dgii-ecf/commit/309863cf0c731e076f8deeab69d565e20e41a40e))
+
 ## [0.1.6](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.5...v0.1.6) (2026-11-12)
 
 
