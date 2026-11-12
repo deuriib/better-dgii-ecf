@@ -254,19 +254,47 @@ different submissions (rare, and usually a modelling mistake).
 
 Outcomes:
 
-| Stored record   | Next attempt                                                |
-| --------------- | ----------------------------------------------------------- |
-| none / `failed` | transmitted normally                                        |
-| `succeeded`     | replayed from the stored answer, DGII not called            |
-| `pending`       | `409 DGII_IDEMPOTENCY_IN_FLIGHT` — reconcile, do not resend |
+| Stored record             | Next attempt                                                |
+| ------------------------- | ----------------------------------------------------------- |
+| none / `failed`           | transmitted normally                                        |
+| `succeeded`               | replayed from the stored answer, DGII not called            |
+| `pending` / `unconfirmed` | `409 DGII_IDEMPOTENCY_IN_FLIGHT` — reconcile, do not resend |
 
-`pending` is the important one: it means an earlier attempt may have reached DGII and
-the outcome is unknown. Resolve it with the document itself:
+`failed` and `unconfirmed` look similar and mean opposite things:
+
+- **`failed`** — DGII refused it, or nothing left the process. Retrying is safe.
+- **`unconfirmed`** — the request may have reached DGII (timeout, 5xx, 408, 429, a
+  circuit that opened mid-flight, an answer this integration could not read). Retrying
+  could issue the document twice, so the guard refuses until DGII's own answer settles
+  it.
+
+Which one it is comes from the SDK error code:
+
+| DGII SDK code                                                     | Recorded as   |
+| ----------------------------------------------------------------- | ------------- |
+| `INVALID_XML`, `VALIDATION`, `SIGNING`, `CERTIFICATE`             | `failed`      |
+| `AUTH`, `IDEMPOTENCY`                                             | `failed`      |
+| `HTTP` with a 4xx status                                          | `failed`      |
+| `HTTP` with 5xx / 408 / 429, `TIMEOUT`, `CIRCUIT_OPEN`, `UNKNOWN` | `unconfirmed` |
+| a thrown non-`Result` error                                       | `unconfirmed` |
+
+Resolve an open record with the document itself — this is the only exit from
+`pending`/`unconfirmed`:
 
 ```ts
 const { data } = await authClient.dgiiEcf.documents.reconcile({ xml });
-// { result: { inquiry, delivered, canReuseSequence, cleared } }
+// { result: { inquiry, delivered, canReuseSequence, cleared }, closedRecords: 1 }
 ```
+
+Reconcile **closes every open record for that e-NCF**: `delivered: true` closes it as
+`succeeded` (a later retry replays instead of re-sending), `delivered: false` closes it
+as `failed` (the retry may now transmit). `closedRecords` reports how many rows were
+settled, so a caller can tell "nothing was open" from "I just unblocked a submission".
+
+The replay key is
+`environment + organization + taxpayer + (idempotencyKey ?? sha256(xml))`. A
+certification document therefore cannot replay a production one, and two organizations
+that share an RNC cannot see each other's submissions.
 
 Disable persistence entirely when you already have a durable outbox:
 

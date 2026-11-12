@@ -3,7 +3,7 @@ import { organization } from 'better-auth/plugins';
 import { getTestInstance } from 'better-auth/test';
 import { Environment } from '@deuriib/dgii-ecf';
 import { dgiiEcf, dgiiEcfOrganizationSchema, SUBMISSION_MODEL } from '../src/index.js';
-import { hashDocument } from '../src/persistence.js';
+import { hashDocument, replayKeyFor } from '../src/persistence.js';
 import { createFakeEcf, documentXml, TAXPAYER_A } from './helpers.js';
 
 /**
@@ -112,6 +112,14 @@ describe('submission persistence', () => {
         environment: Environment.Dev,
         operation: 'sendDocument',
         status: 'pending',
+        // The guard is keyed on this, so a hand-written row without it would be
+        // invisible to `begin` — which is exactly what this test asserts.
+        replayKey: replayKeyFor({
+          environment: Environment.Dev,
+          organizationId,
+          taxPayerId: TAXPAYER_A,
+          idempotencyKey: hash,
+        }),
         idempotencyKey: hash,
         encf: 'E310000000106',
         trackId: null,

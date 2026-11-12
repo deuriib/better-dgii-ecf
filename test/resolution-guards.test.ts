@@ -50,7 +50,13 @@ describe('planReplay', () => {
   });
 
   it('refuses while a record is pending', () => {
-    expect(planReplay(record('pending'))).toEqual({ kind: 'conflict' });
+    expect(planReplay(record('pending'))).toMatchObject({ kind: 'conflict' });
+  });
+
+  it('refuses while an outcome is unconfirmed', () => {
+    // `unconfirmed` exists precisely so a timeout cannot be retried: the document
+    // may have reached DGII. Only reconcile closes it.
+    expect(planReplay(record('unconfirmed'))).toMatchObject({ kind: 'conflict' });
   });
 
   it('proceeds after a failed record, because nothing landed', () => {

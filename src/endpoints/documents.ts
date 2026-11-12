@@ -15,6 +15,7 @@ import {
   signDocument,
   unwrap,
 } from './shared.js';
+import { createSubmissionStore } from '../persistence.js';
 
 /**
  * Document transmission endpoints.
@@ -296,6 +297,20 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
       assertIssuer(ctx.body.xml, scope.taxPayerId);
 
       const result = unwrap(await client.reconcileSubmission(ctx.body.xml));
-      return ctx.json({ ...scopeEcho(scope), result });
+
+      // Reconcile is the only exit from `pending`/`unconfirmed`, so it has to
+      // close the records it just settled — otherwise the conflict it resolves
+      // outlives the answer, and the caller stays blocked forever.
+      const store = createSubmissionStore(ctx, deps.options.persistence);
+      const closedRecords = await store.reconcile({
+        environment: scope.environment,
+        organizationId: scope.organizationId,
+        taxPayerId: scope.taxPayerId,
+        encf: documentEncf(ctx.body.xml),
+        delivered: result.delivered,
+        response: result,
+      });
+
+      return ctx.json({ ...scopeEcho(scope), result, closedRecords });
     },
   );

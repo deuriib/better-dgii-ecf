@@ -127,25 +127,51 @@ of minting a new one per request.
 One table, `dgiiEcfSubmission` (registered by the plugin schema, so `auth generate` /
 `auth migrate` creates it):
 
-| Field                     | Type                                 | Why                                               |
-| ------------------------- | ------------------------------------ | ------------------------------------------------- |
-| `id`                      | string                               | Row id (Better Auth)                              |
-| `organizationId`          | string?                              | Tenant scope; null in single-tenant mode          |
-| `taxPayerId`              | string                               | Replay keys are per taxpayer                      |
-| `userId`                  | string                               | Who submitted it                                  |
-| `environment`             | string                               | A certification run is not production traffic     |
-| `operation`               | string                               | Which endpoint produced it                        |
-| `status`                  | `pending` \| `succeeded` \| `failed` | Drives the replay decision                        |
-| `idempotencyKey`          | string?                              | Caller key, else the document hash                |
-| `encf`                    | string?                              | The fiscal identifier                             |
-| `trackId`                 | string?                              | DGII's tracking id                                |
-| `documentHash`            | string?                              | SHA-256, so the XML is never stored               |
-| `errorCode`               | string?                              | What failed                                       |
-| `response`                | string?                              | Serialized answer, bounded by `maxResponseLength` |
-| `createdAt` / `updatedAt` | date                                 | Ordering for replay lookup and audit              |
+| Field                     | Type                                                  | Why                                                             |
+| ------------------------- | ----------------------------------------------------- | --------------------------------------------------------------- |
+| `id`                      | string                                                | Row id (Better Auth)                                            |
+| `organizationId`          | string?                                               | Tenant scope; null in single-tenant mode                        |
+| `taxPayerId`              | string                                                | Replay keys are per taxpayer                                    |
+| `userId`                  | string                                                | Who submitted it                                                |
+| `environment`             | string                                                | A certification run is not production traffic                   |
+| `operation`               | string                                                | Which endpoint produced it                                      |
+| `status`                  | `pending` \| `succeeded` \| `failed` \| `unconfirmed` | Drives the replay decision                                      |
+| `replayKey`               | string, unique                                        | Environment + organization + taxpayer + idempotency key, joined |
+| `idempotencyKey`          | string?                                               | Caller key, else the document hash                              |
+| `encf`                    | string?                                               | The fiscal identifier                                           |
+| `trackId`                 | string?                                               | DGII's tracking id                                              |
+| `documentHash`            | string?                                               | SHA-256, so the XML is never stored                             |
+| `errorCode`               | string?                                               | What failed                                                     |
+| `response`                | string?                                               | Serialized answer, bounded by `maxResponseLength`               |
+| `createdAt` / `updatedAt` | date                                                  | Ordering for replay lookup and audit                            |
 
-Indexes: `(taxPayerId, idempotencyKey)` for the replay read, and
-`(organizationId, createdAt)` for the audit listing.
+The status is a state machine, because "failed" and "we do not know" have opposite
+consequences for a retry:
+
+```text
+           begin
+            │
+            ▼
+         pending ──definite rejection──► failed ──retry──► pending
+            │
+            └──may have been delivered──► unconfirmed ──reconcile──► succeeded | failed
+            │
+            └──────────DGII accepted─────► succeeded ──► replay
+```
+
+`replayKey` is unique, which is what makes the guard safe under concurrency: two
+requests that read "no record" both try to insert, and the database lets exactly one
+win. A `failed` row is reused rather than duplicated, so a legitimate retry does not
+need a new row.
+
+Indexes: unique on `replayKey` for the guard, `(taxPayerId, environment, encf)` for
+reconcile (it closes open records by document), and `(organizationId, createdAt)` for
+the audit listing.
+
+> Adding `replayKey` to an existing deployment needs a migration: the column is required
+> and unique, so existing rows must be backfilled as
+> `environment ‖ organizationId ‖ taxPayerId ‖ idempotencyKey` before the index is
+> created.
 
 Nothing sensitive is stored: no XML, no key material, no token, no certificate password.
 

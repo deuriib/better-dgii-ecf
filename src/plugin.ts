@@ -104,7 +104,11 @@ export const dgiiEcf = (options: DgiiEcfOptions = {}) => {
         userId: { type: 'string', required: true },
         environment: { type: 'string', required: true },
         operation: { type: 'string', required: true },
+        // pending | succeeded | failed | unconfirmed — see src/persistence.ts.
         status: { type: 'string', required: true },
+        // Environment + organization + taxpayer + idempotency key, joined. Unique
+        // so two concurrent attempts cannot both win the key.
+        replayKey: { type: 'string', required: true, unique: true },
         idempotencyKey: { type: 'string', required: false },
         encf: { type: 'string', required: false },
         trackId: { type: 'string', required: false },
@@ -118,8 +122,9 @@ export const dgiiEcf = (options: DgiiEcfOptions = {}) => {
         updatedAt: { type: 'date', required: false, onUpdate: () => new Date() },
       },
       indexes: [
-        // The replay lookup: taxpayer + key must be a cheap read.
-        { fields: ['taxPayerId', 'idempotencyKey'] },
+        // Reconcile closes every open record for one document, so that lookup
+        // has to be cheap. `replayKey` is unique at the field level above.
+        { fields: ['taxPayerId', 'environment', 'encf'] },
         // The audit listing: "everything this organization submitted".
         { fields: ['organizationId', 'createdAt'] },
       ],

@@ -130,3 +130,36 @@ export const toApiError = (error: DgiiError): APIError =>
     code: DGII_ECF_ERROR_CODES.DGII_REQUEST_FAILED.code,
     dgii: toFailureDetail(error),
   });
+
+/**
+ * Whether a DGII failure proves the document was **not** received.
+ *
+ * This decides whether a submission may be retried. Getting it wrong in the
+ * permissive direction submits the same e-NCF twice, so the default for anything
+ * unclear is "the outcome is unknown".
+ *
+ * - A rejection, a validation/signing/certificate error, an authentication
+ *   failure (which happens before transmission) and the SDK's own idempotency
+ *   guard all mean nothing was delivered.
+ * - A 4xx from DGII is DGII refusing the document.
+ * - A timeout, a 5xx, a 408/429, an open circuit, a saturated bulkhead or an
+ *   unrecognised failure mean the request may have been delivered.
+ */
+export const isDefiniteRejection = (error: DgiiError): boolean => {
+  switch (error.code) {
+    case 'INVALID_XML':
+    case 'VALIDATION':
+    case 'SIGNING':
+    case 'CERTIFICATE':
+    case 'AUTH':
+    case 'IDEMPOTENCY':
+      return true;
+    case 'HTTP':
+      // 4xx is a refusal; 5xx, 408 and 429 left the document's fate open.
+      return error.status !== undefined && error.status >= 400 && error.status < 500;
+    case 'CIRCUIT_OPEN':
+    case 'TIMEOUT':
+    case 'UNKNOWN':
+      return false;
+  }
+};
