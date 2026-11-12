@@ -40,9 +40,29 @@ export const api = {
   },
 };
 
-// The namespace must not be `any`: an endpoint the plugin does not declare is a
-// compile error, which is what makes the inference worth relying on.
-// @ts-expect-error - no such endpoint
-client.dgiiEcf.notAnEndpoint;
+// The namespace must not be `any`: every declared endpoint is present, and a
+// name the plugin does not declare is absent. Both are type-level assertions, so
+// they cost nothing at runtime and fail the build rather than a request.
+type DgiiEcfNamespace = typeof client.dgiiEcf;
+
+type ExpectedEndpoints =
+  | 'taxpayer'
+  | 'authenticate'
+  | 'submissions'
+  | 'documents'
+  | 'tracks'
+  | 'inquiries'
+  | 'directories'
+  | 'serviceStatus'
+  | 'maintenanceWindows'
+  | 'serviceAvailability';
+
+export const declaresEveryEndpoint: ExpectedEndpoints extends keyof DgiiEcfNamespace
+  ? true
+  : never = true;
+
+export const declaresNothingElse: 'notAnEndpoint' extends keyof DgiiEcfNamespace
+  ? never
+  : true = true;
 
 export type { api as DgiiEcfClientApi };
