@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.0...v0.1.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **release:** keep CI green after a release and diagnose a bare publish failure ([#11](https://github.com/deuriib/better-dgii-ecf/issues/11)) ([19b39f3](https://github.com/deuriib/better-dgii-ecf/commit/19b39f3a67671d44a7607bc1fe879a03e1e8114e))
+
 ## 0.1.0 (2026-11-12)
 
 
