@@ -50,6 +50,8 @@ export const DGII_ECF_ERROR_CODES = defineErrorCodes({
 
 export type DgiiEcfErrorCode = keyof typeof DGII_ECF_ERROR_CODES;
 
+type ApiErrorStatus = Parameters<typeof APIError.from>[0];
+
 /**
  * HTTP status for a failure the DGII SDK reported.
  *
@@ -58,20 +60,54 @@ export type DgiiEcfErrorCode = keyof typeof DGII_ECF_ERROR_CODES;
  * (or the network to it) is the problem and the call is worth retrying. An
  * upstream credential problem is a 500: the application's server-side
  * configuration is broken and no retry from the client can fix it.
+ *
+ * `HTTP` in this table is only the fallback. A response DGII actually sent is
+ * classified by {@link statusForUpstreamHttp}: a 400 or 422 is a permanent
+ * rejection and must not be reported as a retryable 502.
  */
-const STATUS_BY_DGII_CODE: Record<DgiiErrorCode, Parameters<typeof APIError.from>[0]> =
-  {
-    INVALID_XML: 'BAD_REQUEST',
-    SIGNING: 'BAD_REQUEST',
-    VALIDATION: 'BAD_REQUEST',
-    CERTIFICATE: 'INTERNAL_SERVER_ERROR',
-    IDEMPOTENCY: 'CONFLICT',
-    AUTH: 'BAD_GATEWAY',
-    HTTP: 'BAD_GATEWAY',
-    TIMEOUT: 'BAD_GATEWAY',
-    CIRCUIT_OPEN: 'BAD_GATEWAY',
-    UNKNOWN: 'BAD_GATEWAY',
-  };
+const STATUS_BY_DGII_CODE: Record<DgiiErrorCode, ApiErrorStatus> = {
+  INVALID_XML: 'BAD_REQUEST',
+  SIGNING: 'BAD_REQUEST',
+  VALIDATION: 'BAD_REQUEST',
+  CERTIFICATE: 'INTERNAL_SERVER_ERROR',
+  IDEMPOTENCY: 'CONFLICT',
+  AUTH: 'BAD_GATEWAY',
+  HTTP: 'BAD_GATEWAY',
+  TIMEOUT: 'BAD_GATEWAY',
+  CIRCUIT_OPEN: 'BAD_GATEWAY',
+  UNKNOWN: 'BAD_GATEWAY',
+};
+
+/**
+ * 4xx statuses that are not a rejection of this document. The SDK treats them
+ * as retryable; callers should too, so they surface as 502 rather than 400.
+ */
+const RETRYABLE_UPSTREAM_STATUS = new Set<number>([408, 429]);
+
+/**
+ * Classify an `HTTP` failure by the status DGII returned.
+ *
+ * `400`, `409` and `422` are preserved. Every other 4xx is the same
+ * client-error class (`400`), except `408` and `429`. Every 5xx, and a
+ * failure that carries no upstream status, is `502`.
+ */
+const statusForUpstreamHttp = (status: number | undefined): ApiErrorStatus => {
+  if (status === 409) {
+    return 'CONFLICT';
+  }
+  if (status === 422) {
+    return 'UNPROCESSABLE_ENTITY';
+  }
+  if (
+    status !== undefined &&
+    status >= 400 &&
+    status < 500 &&
+    !RETRYABLE_UPSTREAM_STATUS.has(status)
+  ) {
+    return 'BAD_REQUEST';
+  }
+  return 'BAD_GATEWAY';
+};
 
 interface DgiiFailureDetail {
   readonly code: DgiiErrorCode;
@@ -131,11 +167,16 @@ export const serverError = (error: ErrorCodeLike, message?: string): APIError =>
 
 /** Translate a DGII SDK failure into an `APIError` the client can branch on. */
 export const toApiError = (error: DgiiError): APIError =>
-  new APIError(STATUS_BY_DGII_CODE[error.code], {
-    message: error.message,
-    code: DGII_ECF_ERROR_CODES.DGII_REQUEST_FAILED.code,
-    dgii: toFailureDetail(error),
-  });
+  new APIError(
+    error.code === 'HTTP'
+      ? statusForUpstreamHttp(error.status)
+      : STATUS_BY_DGII_CODE[error.code],
+    {
+      message: error.message,
+      code: DGII_ECF_ERROR_CODES.DGII_REQUEST_FAILED.code,
+      dgii: toFailureDetail(error),
+    },
+  );
 
 /**
  * Whether a DGII failure proves the document was **not** received.
