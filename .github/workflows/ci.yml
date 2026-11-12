@@ -20,7 +20,7 @@ jobs:
     name: mise run ci
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # gitleaks scans history, so the default shallow clone is not enough.
           fetch-depth: 0
@@ -62,7 +62,7 @@ jobs:
       matrix:
         node: ['20', '22']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: jdx/mise-action@v3
         with:
