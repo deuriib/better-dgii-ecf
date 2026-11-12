@@ -277,6 +277,38 @@ dgiiEcf({ credentials, persistence: { enabled: false } });
 You then lose the replay guard and `dgiiEcf.submissions` answers
 `501 DGII_PERSISTENCE_UNAVAILABLE`.
 
+## Endpoint reference
+
+Every endpoint requires an authenticated session and resolves a taxpayer
+([how](#which-taxpayer-does-a-call-act-for)) unless noted. `derived` means the DGII SDK
+takes the RNC from the signed document itself, and the issuer is still checked against
+the authorized taxpayer.
+
+| Method | Path                                      | Client                                 | DGII operation      | Needs                  |
+| ------ | ----------------------------------------- | -------------------------------------- | ------------------- | ---------------------- |
+| `GET`  | `/dgii-ecf/taxpayer`                      | `dgiiEcf.taxpayer`                     | —                   | —                      |
+| `POST` | `/dgii-ecf/authenticate`                  | `dgiiEcf.authenticate`                 | seed + token        | credentials            |
+| `POST` | `/dgii-ecf/documents`                     | `dgiiEcf.documents`                    | routed by document  | XML, issuer = taxpayer |
+| `POST` | `/dgii-ecf/documents/electronic`          | `dgiiEcf.documents.electronic`         | general reception   | XML, issuer = taxpayer |
+| `POST` | `/dgii-ecf/documents/summary`             | `dgiiEcf.documents.summary`            | RFCE reception      | XML, issuer = taxpayer |
+| `POST` | `/dgii-ecf/documents/commercial-approval` | `dgiiEcf.documents.commercialApproval` | ACECF               | XML, issuer = taxpayer |
+| `POST` | `/dgii-ecf/documents/void-range`          | `dgiiEcf.documents.voidRange`          | ANECF               | XML, issuer = taxpayer |
+| `POST` | `/dgii-ecf/documents/reconcile`           | `dgiiEcf.documents.reconcile`          | inquiry + tracks    | XML, issuer = taxpayer |
+| `GET`  | `/dgii-ecf/tracks`                        | `dgiiEcf.tracks`                       | `consultaresultado` | —                      |
+| `POST` | `/dgii-ecf/inquiries/status`              | `dgiiEcf.inquiries.status`             | `consultaestado`    | —                      |
+| `POST` | `/dgii-ecf/inquiries/tracks`              | `dgiiEcf.inquiries.tracks`             | `consultatrackids`  | —                      |
+| `POST` | `/dgii-ecf/inquiries/summary`             | `dgiiEcf.inquiries.summary`            | RFCE inquiry (prod) | production environment |
+| `GET`  | `/dgii-ecf/directories/customers`         | `dgiiEcf.directories.customers`        | directory by RNC    | —                      |
+| `GET`  | `/dgii-ecf/directories/all`               | `dgiiEcf.directories.all`              | full directory      | —                      |
+| `GET`  | `/dgii-ecf/service-status`                | `dgiiEcf.serviceStatus`                | service status      | `status.apiKey`        |
+| `GET`  | `/dgii-ecf/maintenance-windows`           | `dgiiEcf.maintenanceWindows`           | maintenance windows | `status.apiKey`        |
+| `GET`  | `/dgii-ecf/service-availability`          | `dgiiEcf.serviceAvailability`          | availability check  | `status.apiKey`        |
+| `GET`  | `/dgii-ecf/submissions`                   | `dgiiEcf.submissions`                  | —                   | persistence on         |
+
+The endpoints that transmit sign the document when `sign: true` is sent, record the
+attempt, and replay a known submission (`replayed: true`) instead of re-sending it.
+Every response echoes `taxPayerId`, `organizationId` and `environment`.
+
 ## Errors
 
 Every failure is an `APIError` with a machine-readable `code` in the body (also

@@ -30,15 +30,12 @@ export const DGII_ECF_ERROR_CODES = defineErrorCodes({
     'The session user does not hold a role allowed to perform this DGII operation',
   DGII_CREDENTIALS_UNAVAILABLE:
     'No DGII credentials could be resolved for this taxpayer id',
-  DGII_CLIENT_NOT_CONFIGURED:
-    'The plugin was configured without `credentials` or `getClient`, so it cannot reach DGII',
   DGII_STATUS_API_KEY_REQUIRED:
     'The DGII status service needs an API key: configure `status.apiKey`',
   DGII_DOCUMENT_UNREADABLE:
     'The signed document carries no issuer taxpayer id (RNCEmisor / RncEmisor)',
   DGII_SIGNING_FAILED: 'The document could not be signed with the organization key',
   DGII_REQUEST_FAILED: 'The DGII request failed',
-  DGII_SUBMISSION_NOT_FOUND: 'No stored submission matches this id',
   DGII_PERSISTENCE_UNAVAILABLE:
     'Submission persistence is disabled, so this operation is unavailable',
   DGII_IDEMPOTENCY_IN_FLIGHT:
