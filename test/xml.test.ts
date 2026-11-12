@@ -45,9 +45,59 @@ describe('rootElementName', () => {
   it('returns undefined when there is no element', () => {
     expect(rootElementName('<?xml version="1.0"?>')).toBeUndefined();
   });
+
+  it('skips a DOCTYPE declaration', () => {
+    expect(
+      rootElementName('<?xml version="1.0"?><!DOCTYPE ECF [<!ENTITY x "y">]><ECF/>'),
+    ).toBe('ECF');
+  });
+
+  it('ignores markup that looks like a tag inside a comment', () => {
+    expect(rootElementName('<?xml version="1.0"?><!-- <FakeRoot> --><ECF/>')).toBe(
+      'ECF',
+    );
+  });
+
+  it('still finds the root when a comment sits inside the document', () => {
+    expect(rootElementName('<ECF><!-- <FakeRoot> --><Encabezado/></ECF>')).toBe('ECF');
+  });
+
+  it('reads the root of a document with a namespace prefix and attributes', () => {
+    expect(rootElementName('<ns:RFCE version="1.0"><ns:x/></ns:RFCE>')).toBe('RFCE');
+  });
 });
 
 describe('issuerTaxPayerId', () => {
+  it('never reads the issuer out of a comment', () => {
+    // Reading from a comment would let a document pass the issuer check while
+    // declaring a different taxpayer to DGII — the check is the tenant boundary.
+    expect(
+      issuerTaxPayerId(
+        '<ECF><!-- <RNCEmisor>131123456</RNCEmisor> --><RNCEmisor>101010101</RNCEmisor></ECF>',
+      ),
+    ).toBe('101010101');
+  });
+
+  it('returns undefined when the only issuer is commented out', () => {
+    expect(
+      issuerTaxPayerId('<ECF><!-- <RNCEmisor>131123456</RNCEmisor> --></ECF>'),
+    ).toBeUndefined();
+  });
+
+  it('does not read from an unterminated comment', () => {
+    expect(
+      issuerTaxPayerId('<ECF><!-- <RNCEmisor>131123456</RNCEmisor></ECF>'),
+    ).toBeUndefined();
+  });
+
+  it('reads the issuer past a processing instruction and a declaration', () => {
+    expect(
+      issuerTaxPayerId(
+        '<?xml version="1.0"?><?dgii mode="test"?><!DOCTYPE ECF><ECF><RNCEmisor>131123456</RNCEmisor></ECF>',
+      ),
+    ).toBe('131123456');
+  });
+
   it('reads RNCEmisor from an e-CF document', () => {
     expect(issuerTaxPayerId('<ECF><RNCEmisor>131123456</RNCEmisor></ECF>')).toBe(
       '131123456',
