@@ -38,6 +38,26 @@ npm token revoke <token-id>
 
 The placeholder version is permanent history; Option A avoids it.
 
+## Before the first release
+
+Do the bootstrap **first**, then merge the release pull request. If the release PR is
+merged before the trusted publisher exists, `publish.yml` fails with a 404 from the
+registry — nothing is corrupted, the tag simply exists without a published package, and
+the workflow can be re-dispatched once the publisher is configured. Doing it in the
+other order avoids the noise.
+
+## Why the release pull request has no checks
+
+release-please runs with `secrets.GITHUB_TOKEN`, and GitHub does not start workflow runs
+for events created with that token. The release PR therefore looks like a PR with no CI
+— not because the checks were skipped by configuration, but because no `pull_request`
+event was ever emitted for it.
+
+That is tolerable precisely because the publish job re-runs the suite before it uploads:
+the artifact that reaches the registry has always been tested from the commit it was
+built from. `docs/decisions.md` records the same reasoning for why a tag is not treated
+as evidence.
+
 ## The release flow
 
 1. Merge a pull request whose title is a Conventional Commit onto `main`.
