@@ -199,9 +199,11 @@ dgiiEcf({
   credentials: async ({ taxPayerId, organizationId, userId, environment }) => {
     const record = await certificates.load({ taxPayerId, organizationId });
     if (!record) return null; // → 500 DGII_CREDENTIALS_UNAVAILABLE
-    return new P12Reader(record.password)
-      .getKeyFromStringBase64(record.base64)
-      .unwrapOrThrow();
+    const parsed = new P12Reader(record.password).getKeyFromStringBase64(record.base64);
+    if (parsed.isErr()) {
+      throw parsed.error;
+    }
+    return parsed.value;
   },
 });
 ```
@@ -442,8 +444,8 @@ dgiiEcf({ credentials, status: { apiKey: process.env.DGII_STATUS_API_KEY } });
 ```
 
 ```ts
-await authClient.dgiiEcf.serviceStatus();
-await authClient.dgiiEcf.maintenanceWindows();
+await authClient.dgiiEcf.serviceStatus({ query: {} });
+await authClient.dgiiEcf.maintenanceWindows({ query: {} });
 await authClient.dgiiEcf.serviceAvailability({ query: { environment: 'production' } });
 ```
 

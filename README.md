@@ -64,9 +64,11 @@ export const auth = betterAuth({
       // taxpayer, never from a request body.
       credentials: async ({ taxPayerId }) => {
         const p12 = await certificates.for(taxPayerId); // your storage
-        return new P12Reader(p12.password)
-          .getKeyFromStringBase64(p12.base64)
-          .unwrapOrThrow();
+        const parsed = new P12Reader(p12.password).getKeyFromStringBase64(p12.base64);
+        if (parsed.isErr()) {
+          throw parsed.error;
+        }
+        return parsed.value;
       },
       status: { apiKey: process.env.DGII_STATUS_API_KEY! },
     }),
