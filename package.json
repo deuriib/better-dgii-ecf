@@ -1,7 +1,7 @@
 {
   "name": "@deuriib/better-dgii-ecf",
-  "version": "0.0.0",
-  "description": "Better Auth plugin for the DGII e-CF SDK \u2014 organization-scoped taxpayer resolution, server-side credential isolation and audited e-invoicing endpoints.",
+  "version": "0.1.0",
+  "description": "Better Auth plugin for the DGII e-CF SDK — organization-scoped taxpayer resolution, server-side credential isolation and audited e-invoicing endpoints.",
   "type": "module",
   "license": "MIT",
   "author": "Deuri Vasquez <deuriib@gmail.com>",
