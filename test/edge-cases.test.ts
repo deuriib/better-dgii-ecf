@@ -16,6 +16,7 @@ describe('edge cases', () => {
     const instance = await getTestInstance({
       plugins: [
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: () => Environment.Cert,
           getClient: () => fake,
         }),
@@ -35,6 +36,7 @@ describe('edge cases', () => {
     const instance = await getTestInstance({
       plugins: [
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           validateTaxPayerId: () => {
@@ -57,6 +59,7 @@ describe('edge cases', () => {
     const instance = await getTestInstance({
       plugins: [
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           credentials: () => null,
         }),
@@ -83,6 +86,7 @@ describe('edge cases', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           persistence: { maxResponseLength: 4 },
@@ -117,7 +121,11 @@ describe('edge cases', () => {
     const instance = await getTestInstance({
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
-        dgiiEcf({ environment: Environment.Dev, getClient: () => fake }),
+        dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
+          environment: Environment.Dev,
+          getClient: () => fake,
+        }),
       ],
     });
     const { headers } = await instance.signInWithTestUser();
@@ -148,6 +156,7 @@ describe('edge cases', () => {
     const instance = await getTestInstance({
       plugins: [
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           credentials: () => fakeCredentials,
         }),

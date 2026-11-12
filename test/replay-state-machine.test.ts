@@ -23,6 +23,7 @@ const build = async (
     plugins: [
       organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
       dgiiEcf({
+        verifyTaxPayerOwnership: () => true,
         environment: Environment.Dev,
         getClient: () => fake,
         ...(persistence === undefined ? {} : { persistence }),
@@ -221,7 +222,11 @@ describe('the replay key carries the scope', () => {
     const instance = await getTestInstance({
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
-        dgiiEcf({ environment: Environment.Dev, getClient: () => fake }),
+        dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
+          environment: Environment.Dev,
+          getClient: () => fake,
+        }),
       ],
     });
     const { headers } = await instance.signInWithTestUser();

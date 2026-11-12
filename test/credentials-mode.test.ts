@@ -18,6 +18,7 @@ describe('credential mode', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           credentials: () => fakeCredentials,
           ...options,
@@ -102,9 +103,9 @@ describe('credential mode', () => {
   });
 
   it('refuses to build at all with neither credentials nor a client', () => {
-    expect(() => dgiiEcf({ environment: Environment.Dev })).toThrow(
-      /credentials.*getClient|getClient.*credentials/,
-    );
+    expect(() =>
+      dgiiEcf({ verifyTaxPayerOwnership: () => true, environment: Environment.Dev }),
+    ).toThrow(/credentials.*getClient|getClient.*credentials/);
   });
 });
 
@@ -116,6 +117,7 @@ describe('persistence disabled', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           persistence: { enabled: false },
@@ -166,6 +168,7 @@ describe('persistence disabled', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           persistence: { storeResponses: false },
@@ -199,6 +202,7 @@ describe('persistence disabled', () => {
 describe('plugin contract', () => {
   it('declares the submission table and its indexes', () => {
     const plugin = dgiiEcf({
+      verifyTaxPayerOwnership: () => true,
       environment: Environment.Dev,
       credentials: () => fakeCredentials,
     });
@@ -220,6 +224,7 @@ describe('plugin contract', () => {
 
   it('does not touch the organization table by default', () => {
     const plugin = dgiiEcf({
+      verifyTaxPayerOwnership: () => true,
       environment: Environment.Dev,
       credentials: () => fakeCredentials,
     });
@@ -228,6 +233,7 @@ describe('plugin contract', () => {
 
   it('adds only a read-only organization field when asked to', () => {
     const plugin = dgiiEcf({
+      verifyTaxPayerOwnership: () => true,
       environment: Environment.Dev,
       credentials: () => fakeCredentials,
       organization: { extendSchema: true, field: 'rnc' },
@@ -239,6 +245,7 @@ describe('plugin contract', () => {
 
   it('rate limits the whole plugin surface', () => {
     const plugin = dgiiEcf({
+      verifyTaxPayerOwnership: () => true,
       environment: Environment.Dev,
       credentials: () => fakeCredentials,
     });
@@ -250,6 +257,7 @@ describe('plugin contract', () => {
 
   it('exposes the client provider so a rotated certificate can be dropped', async () => {
     const plugin = dgiiEcf({
+      verifyTaxPayerOwnership: () => true,
       environment: Environment.Dev,
       credentials: () => fakeCredentials,
     });
@@ -266,6 +274,7 @@ describe('plugin contract', () => {
 
   it('publishes its error codes', () => {
     const plugin = dgiiEcf({
+      verifyTaxPayerOwnership: () => true,
       environment: Environment.Dev,
       credentials: () => fakeCredentials,
     });

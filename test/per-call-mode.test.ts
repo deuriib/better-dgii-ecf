@@ -17,6 +17,7 @@ describe('per-call mode (no organization plugin)', () => {
     getTestInstance({
       plugins: [
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           ...options,
@@ -107,6 +108,7 @@ describe('per-call mode (no organization plugin)', () => {
       plugins: [
         organization({ schema: { organization: dgiiEcfOrganizationSchema() } }),
         dgiiEcf({
+          verifyTaxPayerOwnership: () => true,
           environment: Environment.Dev,
           getClient: () => fake,
           authorize: ({ taxPayerId }) => taxPayerId === TAXPAYER_B,

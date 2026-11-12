@@ -3,6 +3,7 @@ import * as z from 'zod';
 import { StatusEnvironment } from '@deuriib/dgii-ecf';
 import { type DgiiEcfEndpointDeps, prepare, scopeEcho, unwrap } from './shared.js';
 import { DGII_ECF_ERROR_CODES, serverError } from '../errors.js';
+import { resolveBuyerHost } from '../buyer-delivery.js';
 
 /**
  * DGII operational endpoints.
@@ -51,19 +52,19 @@ export const authenticate = (deps: DgiiEcfEndpointDeps) =>
     '/dgii-ecf/authenticate',
     {
       method: 'POST',
-      body: z.object({
+      body: z.strictObject({
         ...scopeShape,
-        buyerHost: z
-          .string()
-          .url()
-          .optional()
-          .meta({ description: 'Authenticate against a buyer Sender↔Receiver host.' }),
+        buyer: z.string().min(1).optional().meta({
+          description:
+            'Name of a configured buyer host (`buyerDelivery.hosts`) to authenticate against.',
+        }),
       }),
       use: [sessionMiddleware],
     },
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
-      const token = unwrap(await client.authenticate(ctx.body.buyerHost));
+      const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
+      const token = unwrap(await client.authenticate(buyerHost));
       return ctx.json({
         ...scopeEcho(scope),
         issuedAt: token.expedido,

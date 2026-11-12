@@ -137,6 +137,32 @@ export interface DgiiEcfOptions {
   resolveTaxPayerId?: DgiiEcfTaxPayerIdResolver;
   /** Replace the built-in authorization policy entirely. */
   authorize?: DgiiEcfAuthorizer;
+  /**
+   * Confirm that an organization owns a taxpayer id before it is stored on the
+   * organization.
+   *
+   * Required to let anyone set `organization.taxPayerId` through the auth API: the
+   * field is the tenant boundary, and without this check an organization admin can
+   * claim any RNC. Return `true` to allow the write. Hosts that keep the field
+   * read-only (`organization.extendSchema: true`) do not need it — they write the
+   * value from their own verified path.
+   */
+  verifyTaxPayerOwnership?: (context: {
+    readonly taxPayerId: string;
+    readonly organizationId: string | null;
+    readonly user: User;
+    readonly session: Session;
+  }) => boolean | Promise<boolean>;
+  /**
+   * Direct delivery to buyer Sender↔Receiver hosts, by name.
+   *
+   * The URL never comes from a request: a request selects a name, and this map
+   * decides where the call goes. Without it, requesting a buyer is refused.
+   */
+  buyerDelivery?: {
+    /** Name → absolute HTTPS URL, e.g. `{ acme: 'https://fe.acme.com' }`. */
+    readonly hosts: Record<string, string>;
+  };
   /** Organization integration knobs. */
   organization?: DgiiEcfOrganizationOptions;
   /** Roles allowed to perform DGII operations. Defaults to owner and admin. */
