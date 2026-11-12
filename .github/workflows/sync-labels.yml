@@ -1,0 +1,30 @@
+name: sync-labels
+
+# Applies .github/labels.yml to the repository. The file is the only source of truth:
+# a label created by hand in the UI is drift and will be reported by
+# `mise run labels-sync` locally, which is why that task exists.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/labels.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: sync-labels
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Apply labels.yml
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: kjanat/github-labelmanager@v1
+        with:
+          token: ${{ github.token }}

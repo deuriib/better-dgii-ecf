@@ -1,0 +1,111 @@
+# $schema=https://raw.githubusercontent.com/kjanat/github-labelmanager/master/.github/labels.schema.json
+#
+# Single source of truth for every label in this repository.
+#
+# Do not create or edit labels in the GitHub UI: the sync workflow applies this file
+# and anything not listed here is drift. Run `mise run labels-sync` to apply it
+# immediately without waiting for a push to the default branch.
+#
+# Categories: type, priority, state, release. A label belongs to exactly one category,
+# and `aliases` migrates issues when a label is renamed.
+
+labels:
+  # ── Type ───────────────────────────────────────────────────────────────────────
+  - name: bug
+    color: '#d73a4a'
+    description: Something behaves differently from its documentation or contract
+  - name: security
+    color: '#b60205'
+    description:
+      A weakness that could let a caller act outside its authorization or expose a
+      credential
+  - name: enhancement
+    color: '#a2eeef'
+    description: A capability that does not exist yet
+  - name: docs
+    color: '#0075ca'
+    description: Documentation, comments or examples only
+    aliases:
+      - documentation
+  - name: test
+    color: '#fbca04'
+    description: Test coverage, assertions or test infrastructure
+  - name: ci
+    color: '#1d76db'
+    description: Workflows, release automation or repository tooling
+  - name: chore
+    color: '#cfd3d7'
+    description: Maintenance that changes neither behaviour nor tests
+  - name: dependencies
+    color: '#0366d6'
+    description: Dependency or toolchain updates
+  - name: refactor
+    color: '#6f42c1'
+    description: Restructuring that preserves behaviour
+  - name: breaking
+    color: '#e99695'
+    description: Changes a public contract (option, endpoint shape or error code)
+  - name: dx
+    color: '#c5def5'
+    description: Onboarding, error messages or developer-facing ergonomics
+
+  # ── Priority ───────────────────────────────────────────────────────────────────
+  - name: 'priority: critical'
+    color: '#b60205'
+    description:
+      Can issue, duplicate or misattribute a fiscal document, or bypass the tenant
+      boundary
+  - name: 'priority: high'
+    color: '#d93f0b'
+    description: Wrong outcome or misleading signal on a path that reaches production
+  - name: 'priority: medium'
+    color: '#fbca04'
+    description: Correctness or clarity debt with a workaround
+  - name: 'priority: low'
+    color: '#0e8a16'
+    description: Cosmetic or optional improvement
+
+  # ── State ──────────────────────────────────────────────────────────────────────
+  - name: triage
+    color: '#ededed'
+    description: Not yet assessed or prioritized
+    aliases:
+      - needs triage
+  - name: blocked
+    color: '#000000'
+    description: Waiting on a decision, an external dependency or another issue
+  - name: needs-info
+    color: '#d4c5f9'
+    description: Cannot proceed without the reporter's answer
+  - name: good first issue
+    color: '#7057ff'
+    description: Small, self-contained and safe for a first contribution
+  - name: help wanted
+    color: '#008672'
+    description: Open to outside contribution
+  - name: duplicate
+    color: '#cfd3d7'
+    description: Already tracked by another issue
+  - name: invalid
+    color: '#e4e669'
+    description: Not reproducible or out of scope
+  - name: wontfix
+    color: '#ffffff'
+    description: Deliberately not going to be addressed
+  - name: question
+    color: '#d876e3'
+    description: A usage or integration question, not a defect
+
+  # ── Release ────────────────────────────────────────────────────────────────────
+  - name: release
+    color: '#0052cc'
+    description: Release automation, versioning or the published artifact
+  # release-please creates and removes these itself. They are declared so this file
+  # stays the whole truth about the repository's labels, and so a sync never deletes
+  # a label the release bot is using.
+  - name: 'autorelease: pending'
+    color: '#ededed'
+    description: Managed by release-please, applied to the open release pull request
+  - name: 'autorelease: tagged'
+    color: '#ededed'
+    description: Managed by release-please, applied once a release tag exists

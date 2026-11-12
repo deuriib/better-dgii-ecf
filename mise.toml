@@ -41,6 +41,10 @@ run = "pre-commit install --install-hooks && pre-commit install --hook-type comm
 description = "Scan the repository (and its history) for credentials"
 run = "gitleaks detect --source . --redact --no-banner"
 
+[tasks.labels-sync]
+description = "Apply .github/labels.yml to the repository (the workflow does this on main)"
+run = "bun scripts/sync-labels.mjs"
+
 [tasks.hooks]
 description = "Run every pre-commit hook over the whole repository"
 run = "pre-commit run --all-files"
