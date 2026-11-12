@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A superseded run on the same ref has no value: cancel it instead of spending
+# minutes on a commit nobody will merge.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: mise run ci (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor from `engines`, plus the version the toolchain pins.
+        node: ['20', '24']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks scans history, so the default shallow clone is not enough.
+          fetch-depth: 0
+
+      # The toolchain comes from mise.toml: CI and a laptop run the same Node,
+      # Bun, Prettier, tsc and Vitest. `node` in the matrix only overrides the
+      # runtime this job proves compatibility against.
+      - uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+
+      - name: Install dependencies
+        run: mise run bootstrap-deps
+
+      - name: Secrets scan
+        run: mise run secrets
+
+      # Format check, typecheck, coverage thresholds, build, publint + attw.
+      - name: Full CI
+        run: mise run ci
+        env:
+          # `mise.toml` pins Node 24; the matrix entry selects the runtime this
+          # job tests the built artifact against.
+          MISE_NODE_VERSION: ${{ matrix.node }}
+
+      - name: Upload coverage
+        if: matrix.node == '24'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 7

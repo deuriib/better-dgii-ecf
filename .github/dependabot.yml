@@ -1,0 +1,45 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    commit-message:
+      prefix: 'build(deps)'
+    groups:
+      # One PR for the toolchain, one for the peers we must stay compatible with:
+      # `better-auth` and the DGII SDK define the plugin's contract, so they are
+      # reviewed with the changelog open, not auto-merged.
+      toolchain:
+        patterns:
+          - 'typescript'
+          - 'tsup'
+          - 'vitest'
+          - '@vitest/*'
+          - 'prettier'
+          - '@types/*'
+          - 'publint'
+          - '@arethetypeswrong/*'
+        update-types: ['minor', 'patch']
+      better-auth:
+        patterns:
+          - 'better-auth'
+          - '@better-auth/*'
+      dgii-sdk:
+        patterns:
+          - '@deuriib/dgii-ecf'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: 'ci(deps)'

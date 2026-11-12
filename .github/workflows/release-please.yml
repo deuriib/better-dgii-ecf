@@ -1,0 +1,38 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  # Needed to dispatch the publish workflow with the repository token.
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # GitHub suppresses `push`/`release` events created with GITHUB_TOKEN, so a
+      # tag pushed by release-please would never trigger the publish workflow.
+      # `workflow_dispatch` is explicitly exempt from that suppression, so the
+      # publish is dispatched here — no personal access token required.
+      - name: Dispatch publish
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          gh workflow run publish.yml \
+            --repo "${{ github.repository }}" \
+            --ref "$TAG" \
+            -f ref="$TAG"
