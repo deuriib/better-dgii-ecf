@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.3...v0.1.4) (2026-11-12)
+
+
+### Bug Fixes
+
+* **release:** read the registry directly when verifying a publish ([#17](https://github.com/deuriib/better-dgii-ecf/issues/17)) ([7fe31c3](https://github.com/deuriib/better-dgii-ecf/commit/7fe31c30c20b38bb78efb3a9494ceb54df901e3f))
+
 ## [0.1.3](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.2...v0.1.3) (2026-11-12)
 
 
