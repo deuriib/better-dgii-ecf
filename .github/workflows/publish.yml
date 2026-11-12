@@ -30,7 +30,7 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v5
         with:
           install: true
           cache: true

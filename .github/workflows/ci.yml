@@ -27,7 +27,7 @@ jobs:
 
       # The toolchain comes from mise.toml, so CI and a laptop run the same Node,
       # Bun, Prettier, tsc and Vitest.
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v5
         with:
           install: true
           cache: true
@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v5
         with:
           install: true
           cache: true
