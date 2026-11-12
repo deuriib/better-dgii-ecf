@@ -3,6 +3,7 @@ import { BetterAuthError } from '@better-auth/core/error';
 import { ECF } from '@deuriib/dgii-ecf';
 import type { DgiiEcfOptions, DgiiEcfScope } from './types.js';
 import { DGII_ECF_ERROR_CODES } from './errors.js';
+import { normalizeTaxPayerId } from './tax-payer.js';
 
 /**
  * Supplies the DGII client for a resolved scope.
@@ -15,7 +16,12 @@ import { DGII_ECF_ERROR_CODES } from './errors.js';
 export interface DgiiEcfClientProvider {
   /** The client for this scope, or an `APIError` when none can be built. */
   get(scope: DgiiEcfScope): Promise<ECF>;
-  /** Drop cached clients, all of them or only one taxpayer's. */
+  /**
+   * Drop cached clients, all of them or only one taxpayer's.
+   *
+   * The id is normalized first, so `invalidate('1-31-12345-6')` drops the
+   * entry cached for `131123456`. An id with no cached client is a no-op.
+   */
   invalidate(taxPayerId?: string): void;
   /** Number of cached clients; always 0 when `getClient` is configured. */
   readonly size: number;
@@ -147,8 +153,13 @@ export const createClientProvider = (
         cache.clear();
         return;
       }
+      // Keys carry the id as resolution stored it — normalized. An operator
+      // rotating a certificate types the RNC with separators, so normalize
+      // both sides before matching (#34).
+      const target = normalizeTaxPayerId(taxPayerId);
       for (const key of cache.keys()) {
-        if (key.endsWith(`\u0000${taxPayerId}`)) {
+        const cached = key.slice(key.lastIndexOf('\u0000') + 1);
+        if (normalizeTaxPayerId(cached) === target) {
           cache.delete(key);
         }
       }
