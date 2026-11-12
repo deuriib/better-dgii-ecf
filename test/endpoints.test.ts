@@ -188,14 +188,14 @@ describe('endpoint surface', () => {
     await auth.api.dgiiEcfInquiryStatus({
       body: {
         ncf: 'E310000000001',
-        buyerTaxPayerId: '101010101',
+        buyerTaxPayerId: '505074758',
         securityCode: '654321',
       },
       headers,
     });
     expect(fake.calls.at(-1)).toMatchObject({
       method: 'inquiryStatus',
-      args: [TAXPAYER_A, 'E310000000001', '101010101', '654321'],
+      args: [TAXPAYER_A, 'E310000000001', '505074758', '654321'],
     });
   });
 });

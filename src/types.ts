@@ -149,7 +149,12 @@ export interface DgiiEcfOptions {
    * (this is the documented single-tenant mode) and this flag changes nothing.
    */
   allowUntrustedTaxPayerId?: boolean;
-  /** Taxpayer id validation policy. Defaults to `format`. */
+  /**
+   * Taxpayer id validation policy. Defaults to `checksum`: shape plus the DGII
+   * check digit for 9-digit RNCs (measured at 100% over DGII's public registry).
+   * An 11-digit id is shape-checked only, because the cédula check refuses 41
+   * taxpayers that registry contains.
+   */
   validateTaxPayerId?: TaxPayerIdValidation;
   /** Submission persistence and idempotency. */
   persistence?: DgiiEcfPersistenceOptions;

@@ -6,6 +6,7 @@
       "name": "@deuriib/better-dgii-ecf",
       "dependencies": {
         "@better-auth/core": "^1.7.22",
+        "dgii-ts": "^0.3.0",
         "zod": "^4.5.4",
       },
       "devDependencies": {
@@ -322,6 +323,8 @@
     "defu": ["defu@6.1.7", "", {}, "sha512-7z22QmUWiQ/2d0KkdYmANbRUVABpZ9SNYyH5vx6PZ+nE5bcC0l7uFvEfHlyld/HcGBFTL536ClDt3DEcSlEJAQ=="],
 
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
+
+    "dgii-ts": ["dgii-ts@0.3.0", "", {}, "sha512-vDfNFaMB6GYXAcS9yDMO/irfU+TelhBRxdV9i0IhkQupDZa+RDCEqS2RjAkfnORJjHK+1r6YI+vmsCasphZ2lg=="],
 
     "emoji-regex": ["emoji-regex@8.0.0", "", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
 

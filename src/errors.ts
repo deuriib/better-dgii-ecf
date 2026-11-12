@@ -32,6 +32,8 @@ export const DGII_ECF_ERROR_CODES = defineErrorCodes({
     'No DGII credentials could be resolved for this taxpayer id',
   DGII_STATUS_API_KEY_REQUIRED:
     'The DGII status service needs an API key: configure `status.apiKey`',
+  DGII_ENCF_INVALID:
+    'The document carries an e-NCF that does not match the DGII format (E + type + sequence)',
   DGII_DOCUMENT_UNREADABLE:
     'The signed document carries no issuer taxpayer id (RNCEmisor / RncEmisor)',
   DGII_SIGNING_FAILED: 'The document could not be signed with the organization key',

@@ -52,6 +52,24 @@ assert.throws(() => esm.dgiiEcf({}), /credentials/i);
 // `sign: true` needs the resolver that owns the key.
 assert.equal(esm.normalizeTaxPayerId('1-31-12345-6'), '131123456');
 
+// Only the validators subpath of `dgii-ts` may be reachable. The package also
+// ships `soap`, `bulk`, `scraping` and `client` entrypoints, and a scraping code
+// path has no business inside a signing plugin.
+const { readFileSync } = await import('node:fs');
+const built = readFileSync(new URL('../dist/index.js', import.meta.url), 'utf8');
+const dgiiTsImports = [...built.matchAll(/from ['"](dgii-ts[^'"]*)['"]/g)].map(
+  (match) => match[1],
+);
+const unexpected = dgiiTsImports.filter(
+  (specifier) => specifier !== 'dgii-ts/validators',
+);
+assert.equal(
+  unexpected.length,
+  0,
+  `dist/index.js imports unexpected dgii-ts entrypoints: ${unexpected.join(', ')}`,
+);
+assert.deepEqual(dgiiTsImports, ['dgii-ts/validators']);
+
 // The client entrypoint must stay free of Node built-ins: it runs in a browser.
 const client = await import('../dist/client.js');
 assert.equal(typeof client.dgiiEcfClient, 'function');

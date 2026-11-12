@@ -74,6 +74,7 @@
   },
   "dependencies": {
     "@better-auth/core": "^1.7.22",
+    "dgii-ts": "^0.3.0",
     "zod": "^4.5.4"
   },
   "devDependencies": {
