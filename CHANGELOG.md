@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.4...v0.1.5) (2026-11-12)
+
+
+### Bug Fixes
+
+* **release:** wait for npm to finish processing a publish ([#19](https://github.com/deuriib/better-dgii-ecf/issues/19)) ([7441c03](https://github.com/deuriib/better-dgii-ecf/commit/7441c03d104c3b147cf2e948dff6681bb8010242))
+
 ## [0.1.4](https://github.com/deuriib/better-dgii-ecf/compare/v0.1.3...v0.1.4) (2026-11-12)
 
 
