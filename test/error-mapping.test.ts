@@ -105,22 +105,24 @@ describe('DGII failure mapping over HTTP', () => {
     expect(JSON.stringify(failure)).not.toContain('dgii-token-must-not-leak');
   });
 
-  it('records the failed attempt so the audit trail shows it', async () => {
+  it('records a timeout as unconfirmed, not failed', async () => {
+    // "failed" would allow a retry, and a timeout may have delivered the document.
     const listing = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
     expect(
       listing.submissions.some(
         (record: { status: string; errorCode: string | null }) =>
-          record.status === 'failed' && record.errorCode === 'DGII_REQUEST_FAILED',
+          record.status === 'unconfirmed' && record.errorCode === 'TIMEOUT',
       ),
     ).toBe(true);
   });
 
-  it('lets the caller retry the same document after a failure', async () => {
-    // The earlier attempt failed, which is not a replay: a failed record must not
-    // block the corrected retry.
+  it('refuses to retry a document whose outcome is unconfirmed', async () => {
     const failure = await auth.api
       .dgiiEcfSendDocument({ body: { xml: documentXml(TAXPAYER_A) }, headers })
       .catch((error: unknown) => error);
-    expect(failure).toMatchObject({ status: 'BAD_GATEWAY' });
+    expect(failure).toMatchObject({
+      status: 'CONFLICT',
+      body: { code: 'DGII_IDEMPOTENCY_IN_FLIGHT' },
+    });
   });
 });

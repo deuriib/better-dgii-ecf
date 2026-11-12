@@ -7,6 +7,7 @@ import {
   conflict,
   DGII_ECF_ERROR_CODES,
   forbidden,
+  isDefiniteRejection,
   serverError,
   toApiError,
 } from '../errors.js';
@@ -17,6 +18,7 @@ import {
   hashDocument,
   parseStoredResponse,
   planReplay,
+  type ReplayKeyInput,
 } from '../persistence.js';
 import { normalizeTaxPayerId } from '../tax-payer.js';
 import type { DgiiEcfOptions, DgiiEcfScope } from '../types.js';
@@ -164,7 +166,14 @@ export interface RunSubmissionInput<T> {
 }
 
 export interface SubmissionOutcome<T> {
-  readonly result: T;
+  /**
+   * The DGII answer, or `null` on a replay when responses are not retained.
+   *
+   * `null` is the honest answer for "the submission exists and we know its
+   * outcome, but the body was not stored" — asserting `T` there would hand the
+   * caller a value it cannot use.
+   */
+  readonly result: T | null;
   /** True when the answer came from the stored record, not from DGII. */
   readonly replayed: boolean;
   /** Row id of the audit record, when persistence is enabled. */
@@ -198,49 +207,77 @@ export const runSubmission = async <T>({
 }: RunSubmissionInput<T>): Promise<SubmissionOutcome<T>> => {
   const store = createSubmissionStore(ctx, deps.options.persistence);
   const documentHash = hashDocument(xml);
-  const replayKey = idempotencyKey ?? documentHash;
-
-  if (store.enabled) {
-    const existing = await store.findReplay(scope.taxPayerId, replayKey);
-    const decision = planReplay(existing);
-    if (decision.kind === 'conflict') {
-      throw conflict(
-        DGII_ECF_ERROR_CODES.DGII_IDEMPOTENCY_IN_FLIGHT,
-        `A submission for this document is still in flight (record ${existing?.id ?? 'unknown'}). Reconcile it by e-NCF before retrying.`,
-      );
-    }
-    if (decision.kind === 'replay') {
-      return {
-        result: parseStoredResponse(decision.record) as T,
-        replayed: true,
-        submissionId: decision.record.id,
-      };
-    }
-  }
-
-  const submissionId = await store.begin({
+  const keyInput: ReplayKeyInput = {
+    environment: scope.environment,
     organizationId: scope.organizationId,
     taxPayerId: scope.taxPayerId,
+    idempotencyKey: idempotencyKey ?? documentHash,
+  };
+
+  // A `failed` attempt is retried in place, which is why `begin` has to run
+  // before the replay decision can be final: it is the compare-and-set that
+  // decides who owns the key.
+  const begin = await store.begin({
+    ...keyInput,
     userId: scope.userId,
-    environment: scope.environment,
     operation,
-    idempotencyKey: replayKey,
     encf: documentEncf(xml),
     documentHash,
   });
 
-  let result: T;
+  if (begin.status === 'conflict') {
+    const decision = planReplay(begin.record);
+    if (decision.kind === 'replay') {
+      return {
+        result: parseStoredResponse(decision.record) as T | null,
+        replayed: true,
+        submissionId: decision.record.id,
+      };
+    }
+    throw conflict(
+      DGII_ECF_ERROR_CODES.DGII_IDEMPOTENCY_IN_FLIGHT,
+      `A submission for this document may have reached DGII and its outcome is unknown (record ${begin.record.id}, status ${begin.record.status}). Reconcile it by e-NCF before retrying.`,
+    );
+  }
+
+  const submissionId = begin.status === 'started' ? begin.id : null;
+
+  let raw: Awaited<ReturnType<typeof send>>;
   try {
-    result = unwrap(await send());
+    raw = await send();
   } catch (error) {
-    const errorCode =
-      error instanceof APIError
-        ? String(error.body?.code ?? error.status)
-        : error instanceof Error
-          ? error.name
-          : 'UNKNOWN';
-    await store.complete(submissionId, { status: 'failed', errorCode });
+    // A thrown error is not a `Result`, so the SDK did not classify it: the
+    // document may or may not have been transmitted. Treat it as unknown.
+    await store.complete(submissionId, {
+      status: 'unconfirmed',
+      errorCode: error instanceof Error ? error.name : 'UNKNOWN',
+    });
     throw error;
+  }
+
+  if (raw.isErr()) {
+    const error = raw.error;
+    // A definite rejection is safe to retry; anything else may have been
+    // delivered, so it stays open until `reconcile` settles it.
+    const status = isDefiniteRejection(error) ? 'failed' : 'unconfirmed';
+    await store.complete(submissionId, { status, errorCode: error.code });
+    throw toApiError(error);
+  }
+
+  const result = raw.value;
+  if (!isObjectPayload(result)) {
+    // DGII answered 2xx with something that is not a payload. "Something came
+    // back" is not "the document was accepted", so it is not a success.
+    await store.complete(submissionId, {
+      status: 'unconfirmed',
+      errorCode: 'UNRECOGNISED_PAYLOAD',
+      response: result,
+    });
+    throw new APIError('BAD_GATEWAY', {
+      message: 'DGII answered with a payload this integration cannot read',
+      code: DGII_ECF_ERROR_CODES.DGII_REQUEST_FAILED.code,
+      dgii: { code: 'VALIDATION' },
+    });
   }
 
   await store.complete(submissionId, {
@@ -251,6 +288,9 @@ export const runSubmission = async <T>({
 
   return { result, replayed: false, submissionId };
 };
+
+const isObjectPayload = (value: unknown): boolean =>
+  typeof value === 'object' && value !== null;
 
 /** The scope fields every response echoes back. */
 export const scopeEcho = (scope: DgiiEcfScope) => ({

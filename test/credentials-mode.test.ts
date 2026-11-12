@@ -209,8 +209,11 @@ describe('plugin contract', () => {
       status: { type: 'string', required: true },
       createdAt: { type: 'date', required: true },
     });
+    expect(table?.fields).toMatchObject({
+      replayKey: { type: 'string', required: true, unique: true },
+    });
     expect(table?.indexes).toEqual([
-      { fields: ['taxPayerId', 'idempotencyKey'] },
+      { fields: ['taxPayerId', 'environment', 'encf'] },
       { fields: ['organizationId', 'createdAt'] },
     ]);
   });
