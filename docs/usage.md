@@ -400,40 +400,63 @@ Every response echoes `taxPayerId`, `organizationId` and `environment`.
 Every failure is an `APIError` with a machine-readable `code` in the body (also
 available client-side as `error.code`).
 
-| Code                           | Status          | Meaning                                      |
-| ------------------------------ | --------------- | -------------------------------------------- |
-| `DGII_SESSION_REQUIRED`        | 401             | No session                                   |
-| `DGII_TAXPAYER_ID_REQUIRED`    | 400             | No source produced a taxpayer id             |
-| `DGII_TAXPAYER_ID_INVALID`     | 400             | Shape (or your validator) rejected it        |
-| `DGII_TAXPAYER_ID_MISMATCH`    | 403             | Document issuer ≠ authorized taxpayer        |
-| `DGII_TAXPAYER_ID_FORBIDDEN`   | 403             | Taxpayer belongs to another organization     |
-| `DGII_ORGANIZATION_REQUIRED`   | 400             | Organization plugin installed, none in scope |
-| `DGII_ORGANIZATION_NOT_FOUND`  | 404             | Unknown organization id                      |
-| `DGII_NOT_A_MEMBER`            | 403             | Caller is not in the organization            |
-| `DGII_INSUFFICIENT_ROLE`       | 403             | Caller's role is not allowed                 |
-| `DGII_CREDENTIALS_UNAVAILABLE` | 500             | No key material for this taxpayer            |
-| `DGII_STATUS_API_KEY_REQUIRED` | 500             | `status.apiKey` not configured               |
-| `DGII_DOCUMENT_UNREADABLE`     | 400             | Document carries no issuer                   |
-| `DGII_SIGNING_FAILED`          | 400             | The signer rejected the document             |
-| `DGII_IDEMPOTENCY_IN_FLIGHT`   | 409             | A previous attempt may have landed           |
-| `DGII_PERSISTENCE_UNAVAILABLE` | 501             | Audit listing while persistence is off       |
-| `DGII_REQUEST_FAILED`          | 400/409/500/502 | DGII (or the SDK) failed — see below         |
+| Code                           | Status              | Meaning                                      |
+| ------------------------------ | ------------------- | -------------------------------------------- |
+| `DGII_SESSION_REQUIRED`        | 401                 | No session                                   |
+| `DGII_TAXPAYER_ID_REQUIRED`    | 400                 | No source produced a taxpayer id             |
+| `DGII_TAXPAYER_ID_INVALID`     | 400                 | Shape (or your validator) rejected it        |
+| `DGII_TAXPAYER_ID_MISMATCH`    | 403                 | Document issuer ≠ authorized taxpayer        |
+| `DGII_TAXPAYER_ID_FORBIDDEN`   | 403                 | Taxpayer belongs to another organization     |
+| `DGII_ORGANIZATION_REQUIRED`   | 400                 | Organization plugin installed, none in scope |
+| `DGII_ORGANIZATION_NOT_FOUND`  | 404                 | Unknown organization id                      |
+| `DGII_NOT_A_MEMBER`            | 403                 | Caller is not in the organization            |
+| `DGII_INSUFFICIENT_ROLE`       | 403                 | Caller's role is not allowed                 |
+| `DGII_CREDENTIALS_UNAVAILABLE` | 500                 | No key material for this taxpayer            |
+| `DGII_STATUS_API_KEY_REQUIRED` | 500                 | `status.apiKey` not configured               |
+| `DGII_DOCUMENT_UNREADABLE`     | 400                 | Document carries no issuer                   |
+| `DGII_SIGNING_FAILED`          | 400                 | The signer rejected the document             |
+| `DGII_IDEMPOTENCY_IN_FLIGHT`   | 409                 | A previous attempt may have landed           |
+| `DGII_PERSISTENCE_UNAVAILABLE` | 501                 | Audit listing while persistence is off       |
+| `DGII_REQUEST_FAILED`          | 400/409/422/500/502 | DGII (or the SDK) failed — see below         |
 
-`DGII_REQUEST_FAILED` wraps a DGII failure. The body carries the detail:
+`DGII_REQUEST_FAILED` wraps a DGII failure. The body keeps the upstream `status` and
+DGII `mensajes` whichever status this plugin reports:
 
 ```json
 {
   "code": "DGII_REQUEST_FAILED",
-  "message": "Request timed out",
-  "dgii": { "code": "TIMEOUT", "resource": "recepcion/api/FacturasElectronicas" }
+  "message": "El e-NCF ya fue utilizado",
+  "dgii": {
+    "code": "HTTP",
+    "status": 400,
+    "mensajes": [{ "valor": "El e-NCF ya fue utilizado", "codigo": 1200 }]
+  }
 }
 ```
 
-Status mapping: `400` means the request or the document is wrong and resending it
-unchanged will fail again; `409` is an idempotency conflict; `500` is a server-side
-configuration problem; `502` means DGII or the network to it failed and a retry is worth
-attempting. Rejection `mensajes` DGII returned are preserved; the raw body is **not**
-forwarded, because on the authentication endpoints it carries a bearer token.
+When the SDK code is `HTTP`, the reported status follows the status DGII returned.
+`400`, `409` and `422` are preserved. Any other `4xx` except `408` and `429` is the same
+client-error class (`400`): resending that document unchanged will fail again. `408`,
+`429`, any `5xx`, and an `HTTP` failure with no upstream status are `502` — DGII or the
+network failed, and a retry is worth attempting.
+
+| Upstream status                        | Status | Meaning                                        |
+| -------------------------------------- | ------ | ---------------------------------------------- |
+| `400`                                  | 400    | Rejected request or document; do not retry it  |
+| `409`                                  | 409    | Conflict, such as a duplicate e-NCF            |
+| `422`                                  | 422    | Document rejected as unprocessable             |
+| `403`, `404`, `415`, `451`, other 4xx  | 400    | Same class as a client error; do not retry it  |
+| `408`                                  | 502    | Upstream timeout; a retry is worth attempting  |
+| `429`                                  | 502    | Rate limited; a retry is worth attempting      |
+| `500`, `501`, `502`, `503`, `504`, 5xx | 502    | DGII failed; a retry is worth attempting       |
+| no upstream status                     | 502    | Transport failure; a retry is worth attempting |
+
+SDK codes other than `HTTP` ignore the upstream status: `INVALID_XML`, `SIGNING` and
+`VALIDATION` are `400`; `IDEMPOTENCY` is `409`; `CERTIFICATE` is `500` (server-side
+configuration, which a client retry cannot fix); `AUTH`, `TIMEOUT`, `CIRCUIT_OPEN` and
+`UNKNOWN` are `502`. A DGII `401` is reported as `AUTH`, not `HTTP`, so it stays `502`.
+The raw body is **not** forwarded, because on the authentication endpoints it carries a
+bearer token.
 
 ## DGII status endpoints
 
