@@ -63,6 +63,48 @@ Merge the release-please pull request to publish. The publish workflow exchanges
 GitHub OIDC token for a short-lived npm credential — there is no `NPM_TOKEN` to
 configure, and a release never needs a human holding a secret.
 
+### What the squash commit message becomes
+
+With squash merging, the pull request **title and body become the commit message**, and
+that message is what release-please parses. Two things in it fail silently: the run
+reports success, the release pull request is never opened, and the version stops
+advancing while `main` keeps moving.
+
+**Fenced code blocks break the parser.** `@conventional-commits/parser` rejects a body
+containing one, with a message that names a position inside the commit rather than the
+cause:
+
+```text
+commit could not be parsed: 6b4c7a8 fix(security)!: ...
+error message: Error: unexpected token '
+' at 55:10, valid tokens [)]
+commits: 0  →  Would open 0 pull requests
+```
+
+Line 55 was `dgiiEcf({` inside a `ts` fence: an unclosed parenthesis to that grammar.
+Keep code out of pull request bodies and point at the file or test instead; if a commit
+has to carry one, expect to amend the message afterwards.
+
+**One `Closes` per line.** GitHub honours only the first reference in a comma-separated
+list, so `Closes #21, #22` closes #21 and leaves #22 open — which happened twice here
+before it was noticed. Write:
+
+```text
+Closes #21
+Closes #22
+```
+
+To diagnose without pushing, run the same parser locally:
+
+```bash
+gh auth token | xargs -I{} npx release-please@17 release-pr --dry-run \
+  --token {} --repo-url https://github.com/$OWNER/$REPO --target-branch main --debug
+```
+
+Look for `commit could not be parsed`. Everything else release-please reports — the
+version bump, the changelog entry — is derived from messages it could parse, so a
+skipped commit is a changelog omission too, not just a delay.
+
 ## Releasing
 
 Releases are automated through release-please and published over npm OIDC trusted
