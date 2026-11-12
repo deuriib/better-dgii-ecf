@@ -111,6 +111,10 @@ depends = ["lint", "coverage", "pack-check"]
 description = "Publish to npm (OIDC trusted publishing; no token on disk)"
 run = "bunx tsup && npm publish --access public --provenance"
 
+[tasks.publish-bootstrap]
+description = "One-time first publish with your local npm login (no OIDC yet)"
+run = "bunx tsup && npm publish --access public"
+
 [tasks.publish-dry-run]
 description = "Exercise the publish path without uploading"
 run = "bunx tsup && npm publish --access public --dry-run"

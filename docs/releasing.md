@@ -5,38 +5,58 @@ the repository must be allowed to publish it. After that, a merge is the only st
 
 ## One-time bootstrap
 
-npm cannot perform a package's **first** publish over OIDC: the trusted publisher is
-configured _on the package_, so the package must exist first. Pick one path.
+npm cannot configure trusted publishing for a package that does not exist yet, and it
+cannot perform a package's **first** publish over OIDC either — the publisher is
+configured _on the package_. Both halves are verified, not assumed:
 
-### Option A — configure a trusted publisher without a placeholder (npm ≥ 11.10)
+```console
+$ npm trust github "@deuriib/better-dgii-ecf" --file publish.yml --repo deuriib/better-dgii-ecf
+npm error code E404
+npm error 404 Not Found - POST https://registry.npmjs.org/-/package/@deuriib%2fbetter-dgii-ecf/trust - Package not found
+```
+
+So the order is: publish once by hand, configure the publisher, then release normally.
+
+### Step 1 — publish once with your own npm login
 
 ```bash
 npm login
-npm trust github @deuriib/better-dgii-ecf \
-  --file .github/workflows/publish.yml \
-  --repo deuriib/better-dgii-ecf
+mise run publish-bootstrap   # build + `npm publish --access public`, no OIDC, no token stored
+npm logout
 ```
 
-Then dispatch `publish.yml` once for the first release. Nothing else is needed: no token
-is ever stored.
+`publish-bootstrap` exists as a task of its own precisely because it is the one publish
+that must _not_ go through CI: it carries no provenance, and it should never run again.
+Publishing the real `0.0.0` of the package is preferable to a throwaway placeholder — it
+is a version nobody installs, not a stranger's package name.
 
-### Option B — placeholder publish, then revoke the token
+### Step 2 — trust this repository's publish workflow
 
 ```bash
-# 1. Publish a throwaway version with a granular token (write access, 2FA on).
-mise run build
-npm publish --access public          # publishes 0.0.0
-npm token revoke <token-id>
-
-# 2. On npmjs.com → package → Settings → Trusted publishing:
-#      Publisher:        GitHub Actions
-#      Organization:     deuriib
-#      Repository:       better-dgii-ecf
-#      Workflow name:    publish.yml
-#      Environment:      (leave empty)
+npm login   # 2FA is required for this operation
+npm trust github "@deuriib/better-dgii-ecf" \
+  --file publish.yml \
+  --repo deuriib/better-dgii-ecf \
+  --allow-publish
+npm logout
 ```
 
-The placeholder version is permanent history; Option A avoids it.
+`--file` takes the workflow **filename**, not a path — `.github/workflows/publish.yml`
+is rejected as a file name. `--allow-publish` grants the workflow publish permission
+instead of only provenance signing.
+
+The equivalent UI path is npmjs.com → the package → Settings → Trusted publishing:
+
+| Field         | Value             |
+| ------------- | ----------------- |
+| Publisher     | GitHub Actions    |
+| Organization  | `deuriib`         |
+| Repository    | `better-dgii-ecf` |
+| Workflow name | `publish.yml`     |
+| Environment   | _(empty)_         |
+
+Either way, from then on the workflow exchanges a short-lived OIDC token for a publish
+credential: there is no long-lived npm token anywhere.
 
 ## Before the first release
 
