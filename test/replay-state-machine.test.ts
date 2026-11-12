@@ -211,7 +211,7 @@ describe('the replay key carries the scope', () => {
     expect(replayKeyFor({ ...base, environment: Environment.Prod })).not.toBe(key);
     expect(replayKeyFor({ ...base, organizationId: 'org_2' })).not.toBe(key);
     expect(replayKeyFor({ ...base, organizationId: null })).not.toBe(key);
-    expect(replayKeyFor({ ...base, taxPayerId: '101010101' })).not.toBe(key);
+    expect(replayKeyFor({ ...base, taxPayerId: '505074758' })).not.toBe(key);
     // Same inputs, same key: the guard must be stable across processes.
     expect(replayKeyFor(base)).toBe(key);
   });

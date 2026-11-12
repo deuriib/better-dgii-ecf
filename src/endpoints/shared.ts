@@ -21,6 +21,7 @@ import {
   type ReplayKeyInput,
 } from '../persistence.js';
 import { normalizeTaxPayerId } from '../tax-payer.js';
+import { validateEcf } from 'dgii-ts/validators';
 import type { DgiiEcfOptions, DgiiEcfScope } from '../types.js';
 import { elementText, issuerTaxPayerId, rootElementName } from '../xml.js';
 
@@ -144,6 +145,28 @@ export const signDocument = async (
   return signed.value;
 };
 
+/**
+ * Refuse a document whose e-NCF is not a DGII e-NCF.
+ *
+ * Only values that claim to be one are checked (`E…`): the ANECF voiding request
+ * carries a range start and hand-built documents may carry no e-NCF at all, and
+ * inventing a rule for those would reject documents DGII accepts. A malformed
+ * `E…` value, on the other hand, is refused here rather than by DGII after the
+ * document has been signed and transmitted.
+ */
+export const assertEncF = (encf: string | null): void => {
+  if (encf === null || !encf.startsWith('E')) {
+    return;
+  }
+  const result = validateEcf(encf);
+  if (!result.valid) {
+    throw badRequest(
+      DGII_ECF_ERROR_CODES.DGII_ENCF_INVALID,
+      `"${encf}" is not a valid DGII e-NCF (E + document type + sequence, 13 characters)`,
+    );
+  }
+};
+
 /** The e-NCF a document refers to, used for the audit trail. */
 export const documentEncf = (xml: string): string | null =>
   elementText(xml, 'eNCF') ??
@@ -205,6 +228,11 @@ export const runSubmission = async <T>({
   idempotencyKey,
   send,
 }: RunSubmissionInput<T>): Promise<SubmissionOutcome<T>> => {
+  const encf = documentEncf(xml);
+  // Before any row is written: a document DGII's own format already rejects must
+  // not occupy the replay key.
+  assertEncF(encf);
+
   const store = createSubmissionStore(ctx, deps.options.persistence);
   const documentHash = hashDocument(xml);
   const keyInput: ReplayKeyInput = {
@@ -221,7 +249,7 @@ export const runSubmission = async <T>({
     ...keyInput,
     userId: scope.userId,
     operation,
-    encf: documentEncf(xml),
+    encf,
     documentHash,
   });
 

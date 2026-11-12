@@ -28,6 +28,11 @@ export default defineConfig({
     '@better-auth/core',
     '@better-auth/utils',
     '@deuriib/dgii-ecf',
+    // Only the validators subpath is used, and it stays external so the host can
+    // deduplicate it — and so a future `scraping`/`soap` entrypoint can never be
+    // pulled into this bundle by accident.
+    'dgii-ts',
+    'dgii-ts/validators',
     'zod',
   ],
   outExtension: ({ format }) => ({ js: format === 'cjs' ? '.cjs' : '.js' }),

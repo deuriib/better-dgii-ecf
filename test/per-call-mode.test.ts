@@ -29,7 +29,7 @@ describe('per-call mode (no organization plugin)', () => {
     const { headers } = await signInWithTestUser();
 
     const response = await auth.api.dgiiEcfInquiryStatus({
-      body: { ncf: 'E310000000001', taxPayerId: '1-31-12345-6' },
+      body: { ncf: 'E310000000001', taxPayerId: '5-31-05844-7' },
       headers,
     });
 
@@ -127,10 +127,10 @@ describe('per-call mode (no organization plugin)', () => {
     const { headers } = await signInWithTestUser();
 
     const response = await auth.api.dgiiEcfResolveTaxPayer({
-      query: { taxPayerId: '001-1234567-8' },
+      query: { taxPayerId: '026-0132209-8' },
       headers,
     });
-    expect(response.taxPayerId).toBe('00112345678');
+    expect(response.taxPayerId).toBe('02601322098');
   });
 
   it('honours a custom validator that rewrites the id', async () => {
@@ -143,6 +143,7 @@ describe('per-call mode (no organization plugin)', () => {
       query: { taxPayerId: '31123456' },
       headers,
     });
+    // The custom validator replaces the id, so no check digit runs on its output.
     expect(response.taxPayerId).toBe('131123456');
   });
 

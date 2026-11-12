@@ -18,12 +18,23 @@ import type {
 } from '@deuriib/dgii-ecf';
 import { DgiiError } from '@deuriib/dgii-ecf';
 
-/** A validated RNC (9 digits) used as the tenant taxpayer in most tests. */
-export const TAXPAYER_A = '131123456';
-/** A second RNC, used to prove cross-tenant requests are refused. */
-export const TAXPAYER_B = '101010101';
-/** A cédula (11 digits), to prove the other accepted shape works. */
-export const CEDULA = '00112345678';
+/**
+ * Real identifiers, taken from DGII's public taxpayer registry
+ * (`RNC_CONTRIBUYENTES.zip`, 07 Nov 2026).
+ *
+ * They are used instead of invented numbers because the default validation is now
+ * a check digit: a made-up RNC no longer passes, and a fixture that only works
+ * with validation disabled would test the wrong thing. Only the numbers are
+ * recorded here — the registry also carries razón social, which is personal data
+ * and does not belong in a repository.
+ */
+export const TAXPAYER_A = '531058447';
+export const TAXPAYER_B = '505074758';
+export const CEDULA = '02601322098';
+/** Same RNC as {@link TAXPAYER_A}, written the way a human types it. */
+export const TAXPAYER_A_FORMATTED = '5-31-05844-7';
+/** 9 digits, valid shape, wrong check digit — the digit next to TAXPAYER_A. */
+export const TAXPAYER_INVALID_CHECKSUM = '531058448';
 
 export interface RecordedCall {
   readonly method: string;

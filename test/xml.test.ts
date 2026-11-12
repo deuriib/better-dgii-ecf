@@ -73,49 +73,49 @@ describe('issuerTaxPayerId', () => {
     // declaring a different taxpayer to DGII — the check is the tenant boundary.
     expect(
       issuerTaxPayerId(
-        '<ECF><!-- <RNCEmisor>131123456</RNCEmisor> --><RNCEmisor>101010101</RNCEmisor></ECF>',
+        '<ECF><!-- <RNCEmisor>531058447</RNCEmisor> --><RNCEmisor>505074758</RNCEmisor></ECF>',
       ),
-    ).toBe('101010101');
+    ).toBe('505074758');
   });
 
   it('returns undefined when the only issuer is commented out', () => {
     expect(
-      issuerTaxPayerId('<ECF><!-- <RNCEmisor>131123456</RNCEmisor> --></ECF>'),
+      issuerTaxPayerId('<ECF><!-- <RNCEmisor>531058447</RNCEmisor> --></ECF>'),
     ).toBeUndefined();
   });
 
   it('does not read from an unterminated comment', () => {
     expect(
-      issuerTaxPayerId('<ECF><!-- <RNCEmisor>131123456</RNCEmisor></ECF>'),
+      issuerTaxPayerId('<ECF><!-- <RNCEmisor>531058447</RNCEmisor></ECF>'),
     ).toBeUndefined();
   });
 
   it('reads the issuer past a processing instruction and a declaration', () => {
     expect(
       issuerTaxPayerId(
-        '<?xml version="1.0"?><?dgii mode="test"?><!DOCTYPE ECF><ECF><RNCEmisor>131123456</RNCEmisor></ECF>',
+        '<?xml version="1.0"?><?dgii mode="test"?><!DOCTYPE ECF><ECF><RNCEmisor>531058447</RNCEmisor></ECF>',
       ),
-    ).toBe('131123456');
+    ).toBe('531058447');
   });
 
   it('reads RNCEmisor from an e-CF document', () => {
-    expect(issuerTaxPayerId('<ECF><RNCEmisor>131123456</RNCEmisor></ECF>')).toBe(
-      '131123456',
+    expect(issuerTaxPayerId('<ECF><RNCEmisor>531058447</RNCEmisor></ECF>')).toBe(
+      '531058447',
     );
   });
 
   it('reads RncEmisor from an ANECF document', () => {
-    expect(issuerTaxPayerId('<ANECF><RncEmisor>101010101</RncEmisor></ANECF>')).toBe(
-      '101010101',
+    expect(issuerTaxPayerId('<ANECF><RncEmisor>505074758</RncEmisor></ANECF>')).toBe(
+      '505074758',
     );
   });
 
   it('prefers RNCEmisor when both spellings are present', () => {
     expect(
       issuerTaxPayerId(
-        '<x><RNCEmisor>131123456</RNCEmisor><RncEmisor>101010101</RncEmisor></x>',
+        '<x><RNCEmisor>531058447</RNCEmisor><RncEmisor>505074758</RncEmisor></x>',
       ),
-    ).toBe('131123456');
+    ).toBe('531058447');
   });
 
   it('returns undefined rather than guessing', () => {

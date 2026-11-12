@@ -79,7 +79,7 @@ describe('client plugin', () => {
   it('surfaces a plugin error code to the client', async () => {
     const { data, error } = await client.dgiiEcf.inquiries.status({
       ncf: 'E310000000001',
-      taxPayerId: '101010101',
+      taxPayerId: '505074758',
       fetchOptions: { headers },
     });
 

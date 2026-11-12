@@ -46,7 +46,7 @@ describe('organization mode', () => {
       body: {
         name: 'Emisor A',
         slug: 'emisor-a',
-        taxPayerId: '1-31-12345-6',
+        taxPayerId: '5-31-05844-7',
       },
       headers,
     });
@@ -100,7 +100,7 @@ describe('organization mode', () => {
 
   it('accepts a request that repeats the organization taxpayer', async () => {
     const response = await auth.api.dgiiEcfInquiryStatus({
-      body: { ncf: 'E310000000001', taxPayerId: '131-123-456' },
+      body: { ncf: 'E310000000001', taxPayerId: '531-058-447' },
       headers,
     });
     expect(response.taxPayerId).toBe(TAXPAYER_A);

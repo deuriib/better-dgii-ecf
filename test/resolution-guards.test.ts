@@ -22,7 +22,7 @@ describe('resolveRequestScope guards', () => {
       resolveRequestScope({
         ctx: anonymousCtx(),
         options: { environment: Environment.Dev },
-        input: { taxPayerId: '131123456' },
+        input: { taxPayerId: '531058447' },
       }),
     ).rejects.toMatchObject({
       status: 'UNAUTHORIZED',
@@ -34,7 +34,7 @@ describe('resolveRequestScope guards', () => {
 describe('planReplay', () => {
   const record = (status: SubmissionRecord['status']): SubmissionRecord => ({
     id: 'row_1',
-    taxPayerId: '131123456',
+    taxPayerId: '531058447',
     userId: 'user_1',
     environment: 'TesteCF',
     operation: 'sendDocument',
@@ -69,7 +69,7 @@ describe('parseStoredResponse', () => {
     expect(
       parseStoredResponse({
         id: 'row_1',
-        taxPayerId: '131123456',
+        taxPayerId: '531058447',
         userId: 'user_1',
         environment: 'TesteCF',
         operation: 'sendDocument',
@@ -83,7 +83,7 @@ describe('parseStoredResponse', () => {
     expect(
       parseStoredResponse({
         id: 'row_1',
-        taxPayerId: '131123456',
+        taxPayerId: '531058447',
         userId: 'user_1',
         environment: 'TesteCF',
         operation: 'sendDocument',
@@ -97,7 +97,7 @@ describe('parseStoredResponse', () => {
     expect(
       parseStoredResponse({
         id: 'row_1',
-        taxPayerId: '131123456',
+        taxPayerId: '531058447',
         userId: 'user_1',
         environment: 'TesteCF',
         operation: 'sendDocument',
