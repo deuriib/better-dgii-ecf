@@ -184,6 +184,7 @@ mise tasks              # list every task
 - [Architecture](docs/architecture.md) — request lifecycle and data model
 - [Security](docs/security.md) — threat model and guarantees
 - [Decision record](docs/decisions.md) — why the defaults are what they are
+- [Releasing](docs/releasing.md) — trusted publishing, provenance, hotfixes
 - [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## ⚖️ License

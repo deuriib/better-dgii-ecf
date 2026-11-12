@@ -63,6 +63,13 @@ Merge the release-please pull request to publish. The publish workflow exchanges
 GitHub OIDC token for a short-lived npm credential — there is no `NPM_TOKEN` to
 configure, and a release never needs a human holding a secret.
 
+## Releasing
+
+Releases are automated through release-please and published over npm OIDC trusted
+publishing — no `NPM_TOKEN` exists in this repository. The one-time bootstrap (npm
+cannot do a _first_ publish over OIDC) and the provenance verification steps are in
+[docs/releasing.md](docs/releasing.md).
+
 ## Adding an endpoint
 
 1. Add the handler in the right module under `src/endpoints/` using `createAuthEndpoint`
