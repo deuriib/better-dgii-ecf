@@ -78,6 +78,26 @@ the artifact that reaches the registry has always been tested from the commit it
 built from. `docs/decisions.md` records the same reasoning for why a tag is not treated
 as evidence.
 
+## Troubleshooting the first publish
+
+`npm error code ENEEDAUTH` / `need auth` in `publish.yml` means npm found no credential
+at all. With trusted publishing the two usual causes are:
+
+| Cause                                           | Check                                                                        |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| The trusted publisher was never configured      | `npm trust list @deuriib/better-dgii-ecf` (asks for a 2FA code)              |
+| It was configured for a different workflow name | The workflow name must be exactly `publish.yml` — the filename, not the path |
+
+Both are fixed without touching the tag: configure the publisher and re-dispatch the
+workflow.
+
+```bash
+gh workflow run publish.yml --repo deuriib/better-dgii-ecf --ref v0.1.0 -f ref=v0.1.0
+```
+
+The publish job re-runs the suite first, so a re-dispatch is a full verification of the
+tag, not a shortcut past it.
+
 ## The release flow
 
 1. Merge a pull request whose title is a Conventional Commit onto `main`.
