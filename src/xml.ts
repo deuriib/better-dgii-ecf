@@ -20,29 +20,110 @@
  *    residue becomes a false root or a false issuer.
  */
 
-const PATTERN_CACHE = new Map<string, RegExp>();
+const NAME_CHAR = /[A-Za-z0-9_.:-]/;
 
-/**
- * An attribute span may contain `>` inside quotes (`nota="a > b"`), so each
- * quoted form gets its own alternative instead of a blanket `[^>]*`.
- */
-const ATTRIBUTE_SPAN = `(?:[^>"']|"[^"]*"|'[^']*')*`;
+const isSpace = (ch: string): boolean =>
+  ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n';
 
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const elementPattern = (tag: string): RegExp => {
-  const cached = PATTERN_CACHE.get(tag);
-  if (cached !== undefined) {
-    return cached;
+const readQualifiedName = (
+  xml: string,
+  start: number,
+): { name: string; end: number } => {
+  let index = start;
+  while (index < xml.length && NAME_CHAR.test(xml[index]!)) {
+    index += 1;
   }
-  const name = escapeRegExp(tag);
-  const prefix = '(?:[\\w.-]+:)?';
-  const pattern = new RegExp(
-    `<${prefix}${name}${ATTRIBUTE_SPAN}>([\\s\\S]*?)<\\/${prefix}${name}\\s*>`,
-  );
-  PATTERN_CACHE.set(tag, pattern);
-  return pattern;
+  return { name: xml.slice(start, index), end: index };
+};
+
+const localName = (qualified: string): string => {
+  const colon = qualified.lastIndexOf(':');
+  return colon === -1 ? qualified : qualified.slice(colon + 1);
+};
+
+const skipAttributes = (xml: string, start: number): number | undefined => {
+  let index = start;
+  while (index < xml.length) {
+    const ch = xml[index]!;
+    if (ch === '"' || ch === "'") {
+      const close = xml.indexOf(ch, index + 1);
+      if (close === -1) {
+        return undefined;
+      }
+      index = close + 1;
+      continue;
+    }
+    if (ch === '>') {
+      return xml[index - 1] === '/' ? -1 : index + 1;
+    }
+    if (ch === '<') {
+      return undefined;
+    }
+    index += 1;
+  }
+  return undefined;
+};
+
+const findClosingTag = (xml: string, from: number, tag: string): number | undefined => {
+  let index = from;
+  for (;;) {
+    const open = xml.indexOf('</', index);
+    if (open === -1) {
+      return undefined;
+    }
+    const { name, end } = readQualifiedName(xml, open + 2);
+    if (localName(name) === tag) {
+      let after = end;
+      while (after < xml.length && isSpace(xml[after]!)) {
+        after += 1;
+      }
+      if (xml[after] === '>') {
+        return open;
+      }
+    }
+    index = open + 2;
+  }
+};
+
+const extractElementText = (xml: string, tag: string): string | undefined => {
+  let from = 0;
+  for (;;) {
+    const open = xml.indexOf('<', from);
+    if (open === -1) {
+      return undefined;
+    }
+    const marker = xml[open + 1];
+    if (marker === undefined) {
+      return undefined;
+    }
+    if (marker === '?' || marker === '!' || marker === '/') {
+      from = open + 1;
+      continue;
+    }
+    const { name, end } = readQualifiedName(xml, open + 1);
+    if (name === '') {
+      from = open + 1;
+      continue;
+    }
+    if (localName(name) !== tag) {
+      from = end;
+      continue;
+    }
+    const contentStart = skipAttributes(xml, end);
+    if (contentStart === undefined) {
+      from = end;
+      continue;
+    }
+    if (contentStart === -1) {
+      return undefined;
+    }
+    const contentEnd = findClosingTag(xml, contentStart, tag);
+    if (contentEnd === undefined) {
+      return undefined;
+    }
+    const text = xml.slice(contentStart, contentEnd).trim();
+    return text === '' ? undefined : text;
+  }
 };
 
 /**
@@ -116,10 +197,8 @@ const withoutNonElementMarkup = (xml: string): string => {
  * attributes. Returns `undefined` when the element is absent, self-closing or
  * blank. Matching is case-sensitive, as XML element names are.
  */
-export const elementText = (xml: string, tag: string): string | undefined => {
-  const text = elementPattern(tag).exec(withoutNonElementMarkup(xml))?.[1]?.trim();
-  return text === undefined || text === '' ? undefined : text;
-};
+export const elementText = (xml: string, tag: string): string | undefined =>
+  extractElementText(withoutNonElementMarkup(xml), tag);
 
 const ROOT_PATTERN = /<\s*(?:[A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)[\s/>]/;
 

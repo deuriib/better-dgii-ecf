@@ -128,6 +128,12 @@ export const createClientProvider = (
       const client = new ECF(material, scope.environment, {
         ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
         ...(statusApiKey === undefined ? {} : { statusApiKey }),
+        ...(options.onEvent === undefined ? {} : { onEvent: options.onEvent }),
+        ...(options.resilience === undefined ? {} : { resilience: options.resilience }),
+        ...(options.validateBeforeSend === undefined
+          ? {}
+          : { validateBeforeSend: options.validateBeforeSend }),
+        ...(options.xmllintBin === undefined ? {} : { xmllintBin: options.xmllintBin }),
       });
 
       if (ttlMs > 0) {

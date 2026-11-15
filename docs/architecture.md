@@ -63,15 +63,18 @@ A `POST /dgii-ecf/documents` with `sign: true`:
 8. **Issuer check.** `RNCEmisor`/`RncEmisor` in the document must equal the resolved
    taxpayer, otherwise `403 DGII_TAXPAYER_ID_MISMATCH`.
 9. **Replay claim.** `begin` looks up the unique `replayKey`
-   (`environment + organization + taxpayer + idempotencyKey ?? sha256(xml)`): a
-   `succeeded` record replays, an open one (`pending`/`unconfirmed`) conflicts, a
+   (`environment + organization + taxpayer + (idempotencyKey ?? sha256(xml)) + (destination ?? '')`):
+   a `succeeded` record replays, an open one (`pending`/`unconfirmed`) conflicts, a
    `failed` one is reclaimed, and a new document inserts under the unique index.
+   Buyer-directed deliveries are scoped by the normalized destination host so delivering
+   to a buyer does not reuse or block a DGII submission.
 10. **Transmission.** The DGII SDK performs the request with its own retry, circuit
     breaker and timeout policies.
 11. **Outcome.** A definite rejection closes the record as `failed` (retry is safe); a
-    timeout, 5xx/408/429, open circuit, thrown error or unreadable 2xx closes it as
-    `unconfirmed` (only `reconcile` settles that). A readable success closes it as
-    `succeeded` with the track id and, optionally, the serialized answer.
+    timeout, 5xx/408/429, open circuit, ambiguous transport wrapper, thrown error or
+    unreadable 2xx closes it as `unconfirmed` (only `reconcile` settles that). A
+    readable success closes it as `succeeded` with the track id and, optionally, the
+    serialized answer.
 12. **Response.** The DGII payload plus the scope echo: `taxPayerId`, `organizationId`,
     `environment`, `submissionId`, `replayed`.
 

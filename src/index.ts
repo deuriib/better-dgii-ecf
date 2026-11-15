@@ -35,9 +35,17 @@ export type {
   DgiiEcfStatusOptions,
   DgiiEcfTaxPayerIdResolver,
   DgiiEcfTaxPayerIdSource,
+  EcfEvent,
+  EcfEventType,
+  ResilienceOptions,
   TaxPayerIdValidation,
   TaxPayerIdValidator,
 } from './types.js';
 
-/** Re-exported so a host imports the DGII environment from one place. */
-export { Environment } from '@deuriib/dgii-ecf';
+/** Re-exported so callers can configure and observe the DGII SDK from one place. */
+export {
+  AMBIGUOUS_SUBMISSION_MESSAGE,
+  Environment,
+  isSchemaUnavailableError,
+  PENDING_SUBMISSION_MESSAGE,
+} from '@deuriib/dgii-ecf';

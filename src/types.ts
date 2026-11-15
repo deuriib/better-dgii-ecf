@@ -1,5 +1,12 @@
 import type { Session, User } from 'better-auth';
-import type { ECF, Environment, P12ReaderData } from '@deuriib/dgii-ecf';
+import type {
+  ECF,
+  EcfEvent,
+  EcfEventType,
+  Environment,
+  P12ReaderData,
+  ResilienceOptions,
+} from '@deuriib/dgii-ecf';
 
 /**
  * Everything a resolver needs to answer "which credentials / which client /
@@ -190,8 +197,23 @@ export interface DgiiEcfOptions {
   status?: DgiiEcfStatusOptions;
   /** Request timeout forwarded to the DGII SDK. Defaults to the SDK's value. */
   timeoutMs?: number;
+  /** Structured telemetry event listener forwarded to the DGII SDK. */
+  onEvent?: (event: EcfEvent) => void;
+  /** Resilience and circuit breaker options forwarded to the DGII SDK. */
+  resilience?: ResilienceOptions;
+  /** Whether the SDK validates documents with xmllint before transmission. */
+  validateBeforeSend?: boolean;
+  /** Path to the xmllint binary for schema validation. */
+  xmllintBin?: string;
 }
 
-export type { Environment, ECF, P12ReaderData };
+export type {
+  ECF,
+  EcfEvent,
+  EcfEventType,
+  Environment,
+  P12ReaderData,
+  ResilienceOptions,
+};
 export type { TaxPayerIdValidation, TaxPayerIdValidator } from './tax-payer.js';
 import type { TaxPayerIdValidation } from './tax-payer.js';

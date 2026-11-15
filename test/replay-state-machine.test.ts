@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { organization } from 'better-auth/plugins';
 import { getTestInstance } from 'better-auth/test';
-import { DgiiError, Environment, err, ok } from '@deuriib/dgii-ecf';
+import {
+  AMBIGUOUS_SUBMISSION_MESSAGE,
+  DgiiError,
+  Environment,
+  err,
+  ok,
+  PENDING_SUBMISSION_MESSAGE,
+} from '@deuriib/dgii-ecf';
 import { dgiiEcf, dgiiEcfOrganizationSchema } from '../src/index.js';
-import { replayKeyFor } from '../src/persistence.js';
+import {
+  normalizeDestination,
+  replayKeyFor,
+  trimTrailingSlashes,
+} from '../src/persistence.js';
 import { createFakeEcf, documentXml, TAXPAYER_A } from './helpers.js';
 
 /**
@@ -17,6 +28,7 @@ import { createFakeEcf, documentXml, TAXPAYER_A } from './helpers.js';
 const build = async (
   overrides: Record<string, unknown> = {},
   persistence?: { storeResponses?: boolean },
+  buyerDelivery?: { hosts: Record<string, string> },
 ) => {
   const fake = createFakeEcf({ overrides });
   const instance = await getTestInstance({
@@ -27,6 +39,7 @@ const build = async (
         environment: Environment.Dev,
         getClient: () => fake,
         ...(persistence === undefined ? {} : { persistence }),
+        ...(buyerDelivery === undefined ? {} : { buyerDelivery }),
       }),
     ],
   });
@@ -117,6 +130,157 @@ describe('ambiguous outcomes', () => {
       errorCode: 'UNRECOGNISED_PAYLOAD',
     });
   });
+
+  it('records HTTP 408 and 429 as unconfirmed and refuses the retry', async () => {
+    for (const [status, ncf] of [
+      [408, 'E310000000951'],
+      [429, 'E310000000952'],
+    ] as const) {
+      const { auth, headers, fake } = await build({
+        sendDocument: async () =>
+          err(
+            new DgiiError(`HTTP ${status}`, {
+              code: 'HTTP',
+              status,
+            }),
+          ),
+      });
+      const xml = documentXml(TAXPAYER_A, ncf);
+
+      await expect(
+        auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+      ).rejects.toMatchObject({ status: 'BAD_GATEWAY' });
+
+      const listing = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
+      expect(listing.submissions[0]).toMatchObject({
+        status: 'unconfirmed',
+        errorCode: 'HTTP',
+      });
+
+      const callsBefore = fake.methodNames().filter((m) => m === 'sendDocument').length;
+      await expect(
+        auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+      ).rejects.toMatchObject({
+        status: 'CONFLICT',
+        body: { code: 'DGII_IDEMPOTENCY_IN_FLIGHT' },
+      });
+      expect(fake.methodNames().filter((m) => m === 'sendDocument').length).toBe(
+        callsBefore,
+      );
+    }
+  });
+
+  it('records AMBIGUOUS_SUBMISSION_MESSAGE wrapping TIMEOUT as unconfirmed with errorCode TIMEOUT', async () => {
+    const { auth, headers, fake } = await build({
+      sendDocument: async () =>
+        err(
+          new DgiiError(AMBIGUOUS_SUBMISSION_MESSAGE, {
+            code: 'IDEMPOTENCY',
+            cause: new DgiiError('upstream timed out', {
+              code: 'TIMEOUT',
+              resource: 'recepcion/api/FacturasElectronicas',
+            }),
+          }),
+        ),
+    });
+    const xml = documentXml(TAXPAYER_A, 'E310000000953');
+
+    await expect(
+      auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+    ).rejects.toMatchObject({
+      status: 'BAD_GATEWAY',
+      body: {
+        code: 'DGII_REQUEST_FAILED',
+        dgii: {
+          code: 'TIMEOUT',
+          resource: 'recepcion/api/FacturasElectronicas',
+        },
+      },
+    });
+
+    const listing = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
+    expect(listing.submissions[0]).toMatchObject({
+      status: 'unconfirmed',
+      errorCode: 'TIMEOUT',
+    });
+
+    const callsBefore = fake.methodNames().filter((m) => m === 'sendDocument').length;
+    await expect(
+      auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+    ).rejects.toMatchObject({
+      status: 'CONFLICT',
+      body: { code: 'DGII_IDEMPOTENCY_IN_FLIGHT' },
+    });
+    expect(fake.methodNames().filter((m) => m === 'sendDocument').length).toBe(
+      callsBefore,
+    );
+  });
+
+  it('records direct PENDING_SUBMISSION_MESSAGE as unconfirmed with errorCode IDEMPOTENCY', async () => {
+    const { auth, headers } = await build({
+      sendDocument: async () =>
+        err(
+          new DgiiError(PENDING_SUBMISSION_MESSAGE, {
+            code: 'IDEMPOTENCY',
+          }),
+        ),
+    });
+    const xml = documentXml(TAXPAYER_A, 'E310000000954');
+
+    await expect(
+      auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+    ).rejects.toMatchObject({
+      status: 'CONFLICT',
+      body: {
+        code: 'DGII_REQUEST_FAILED',
+        dgii: { code: 'IDEMPOTENCY' },
+      },
+    });
+
+    const listing = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
+    expect(listing.submissions[0]).toMatchObject({
+      status: 'unconfirmed',
+      errorCode: 'IDEMPOTENCY',
+    });
+  });
+
+  it('records post-2xx unreadable VALIDATION error as unconfirmed and refuses the retry', async () => {
+    const { auth, headers, fake } = await build({
+      sendDocument: async () =>
+        err(
+          new DgiiError(
+            'Unexpected DGII response payload; reconcile via a status lookup before retrying',
+            {
+              code: 'VALIDATION',
+            },
+          ),
+        ),
+    });
+    const xml = documentXml(TAXPAYER_A, 'E310000000955');
+
+    await expect(
+      auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+    ).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+    });
+
+    const listing = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
+    expect(listing.submissions[0]).toMatchObject({
+      status: 'unconfirmed',
+      errorCode: 'VALIDATION',
+    });
+
+    const callsBefore = fake.methodNames().filter((m) => m === 'sendDocument').length;
+    await expect(
+      auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+    ).rejects.toMatchObject({
+      status: 'CONFLICT',
+      body: { code: 'DGII_IDEMPOTENCY_IN_FLIGHT' },
+    });
+    expect(fake.methodNames().filter((m) => m === 'sendDocument').length).toBe(
+      callsBefore,
+    );
+  });
 });
 
 describe('reconcile closes the record it settles', () => {
@@ -195,6 +359,68 @@ describe('reconcile closes the record it settles', () => {
     });
     expect(reconciled.closedRecords).toBe(0);
   });
+
+  it('scopes reconcile to the buyer destination when specified', async () => {
+    const { auth, headers } = await build(
+      {
+        sendDocument: async () => timeout(),
+        reconcileSubmission: async () =>
+          ok({
+            inquiry: { codigo: 1, estado: 'Aceptado' },
+            delivered: true,
+            canReuseSequence: false,
+            cleared: false,
+          }),
+      },
+      undefined,
+      { hosts: { acme: 'https://fe.acme.example' } },
+    );
+    const xml = documentXml(TAXPAYER_A, 'E310000000960');
+
+    // Both DGII and buyer deliveries timeout and become unconfirmed
+    await expect(
+      auth.api.dgiiEcfSendDocument({ body: { xml }, headers }),
+    ).rejects.toMatchObject({ status: 'BAD_GATEWAY' });
+
+    await expect(
+      auth.api.dgiiEcfSendDocument({ body: { xml, buyer: 'acme' }, headers }),
+    ).rejects.toMatchObject({ status: 'BAD_GATEWAY' });
+
+    const openBefore = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
+    expect(
+      openBefore.submissions.filter(
+        (s: { status: string }) => s.status === 'unconfirmed',
+      ),
+    ).toHaveLength(2);
+
+    // Reconcile buyer only
+    const reconcileBuyer = await auth.api.dgiiEcfReconcileSubmission({
+      body: { xml, buyer: 'acme' },
+      headers,
+    });
+    expect(reconcileBuyer.closedRecords).toBe(1);
+
+    const afterBuyer = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
+    expect(
+      afterBuyer.submissions.filter(
+        (s: { status: string }) => s.status === 'unconfirmed',
+      ),
+    ).toHaveLength(1);
+
+    // Reconcile DGII only
+    const reconcileDgii = await auth.api.dgiiEcfReconcileSubmission({
+      body: { xml },
+      headers,
+    });
+    expect(reconcileDgii.closedRecords).toBe(1);
+
+    const afterDgii = await auth.api.dgiiEcfListSubmissions({ query: {}, headers });
+    expect(
+      afterDgii.submissions.filter(
+        (s: { status: string }) => s.status === 'unconfirmed',
+      ),
+    ).toHaveLength(0);
+  });
 });
 
 describe('the replay key carries the scope', () => {
@@ -213,6 +439,23 @@ describe('the replay key carries the scope', () => {
     expect(replayKeyFor({ ...base, organizationId: 'org_2' })).not.toBe(key);
     expect(replayKeyFor({ ...base, organizationId: null })).not.toBe(key);
     expect(replayKeyFor({ ...base, taxPayerId: '505074758' })).not.toBe(key);
+    expect(replayKeyFor({ ...base, destination: 'https://fe.acme.example' })).not.toBe(
+      key,
+    );
+    expect(replayKeyFor({ ...base, destination: 'https://fe.acme.example/' })).toBe(
+      replayKeyFor({ ...base, destination: 'https://fe.acme.example' }),
+    );
+    // Linear O(n) stripping of many trailing slashes (CodeQL polynomial ReDoS regression test)
+    const slashes = '/'.repeat(2000);
+    expect(trimTrailingSlashes(`https://fe.acme.example${slashes}`)).toBe(
+      'https://fe.acme.example',
+    );
+    expect(normalizeDestination(`HTTPS://FE.ACME.EXAMPLE${slashes}`)).toBe(
+      'https://fe.acme.example',
+    );
+    expect(
+      replayKeyFor({ ...base, destination: `HTTPS://FE.ACME.EXAMPLE${slashes}` }),
+    ).toBe(replayKeyFor({ ...base, destination: 'https://fe.acme.example' }));
     // Same inputs, same key: the guard must be stable across processes.
     expect(replayKeyFor(base)).toBe(key);
   });

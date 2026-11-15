@@ -38,7 +38,7 @@ bun add @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 # or: npm install @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 ```
 
-Peer dependencies: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.6`.
+Peer dependencies: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.7`.
 
 ## 🚀 Quick start — organization mode
 

@@ -69,7 +69,34 @@ export interface ReplayKeyInput {
   readonly organizationId: string | null;
   readonly taxPayerId: string;
   readonly idempotencyKey: string;
+  readonly destination?: string | null | undefined;
 }
+
+/**
+ * Trims trailing slashes without regular expressions, avoiding polynomial
+ * backtracking (ReDoS) when processing untrusted library inputs.
+ */
+export const trimTrailingSlashes = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47 /* '/' */) {
+    end--;
+  }
+  return value.slice(0, end);
+};
+
+/**
+ * Normalizes a destination identifier or URL by stripping trailing slashes
+ * linearly and converting to lowercase. Returns `undefined` for empty inputs.
+ */
+export const normalizeDestination = (
+  destination: string | null | undefined,
+): string | undefined => {
+  if (destination === undefined || destination === null || destination === '') {
+    return undefined;
+  }
+  const stripped = trimTrailingSlashes(destination);
+  return stripped === '' ? undefined : stripped.toLowerCase();
+};
 
 /**
  * The key the replay guard is looked up by.
@@ -86,8 +113,15 @@ export const replayKeyFor = ({
   organizationId,
   taxPayerId,
   idempotencyKey,
-}: ReplayKeyInput): string =>
-  [environment, organizationId ?? '-', taxPayerId, idempotencyKey].join('\u0000');
+  destination,
+}: ReplayKeyInput): string => {
+  const parts = [environment, organizationId ?? '-', taxPayerId, idempotencyKey];
+  const normalizedDest = normalizeDestination(destination);
+  if (normalizedDest !== undefined) {
+    parts.push(normalizedDest);
+  }
+  return parts.join('\u0000');
+};
 
 export interface BeginSubmissionInput extends ReplayKeyInput {
   readonly userId: string;
@@ -109,6 +143,7 @@ export interface ReconcileInput {
   /** DGII says the document exists. */
   readonly delivered: boolean;
   readonly response: unknown;
+  readonly destination?: string | null | undefined;
 }
 
 export interface ListSubmissionsInput {
@@ -339,15 +374,30 @@ export const createSubmissionStore = (
           { field: 'encf', value: input.encf },
         ],
       });
+      const normalizedDest = normalizeDestination(input.destination);
+
       // Organization equality is applied here rather than in the query: a
       // single-tenant record has no organization, and "no organization" must
       // match only those rows — not "any organization", which is what omitting
-      // the filter would do.
-      const open = rows.filter(
-        (row) =>
-          OPEN_STATUSES.includes(row.status) &&
-          (row.organizationId ?? null) === input.organizationId,
-      );
+      // the filter would do. Reconciling a buyer delivery also scopes to that
+      // buyer destination so delivering to a buyer does not close a DGII attempt.
+      const open = rows.filter((row) => {
+        if (!OPEN_STATUSES.includes(row.status)) {
+          return false;
+        }
+        if ((row.organizationId ?? null) !== input.organizationId) {
+          return false;
+        }
+        if (row.replayKey) {
+          const parts = row.replayKey.split('\u0000');
+          const rowDest = parts[4];
+          if (normalizedDest !== undefined) {
+            return rowDest === normalizedDest;
+          }
+          return rowDest === undefined;
+        }
+        return normalizedDest === undefined;
+      });
       for (const row of open) {
         await complete(row.id, {
           status: input.delivered ? 'succeeded' : 'failed',

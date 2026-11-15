@@ -24,9 +24,17 @@ import type { DgiiEcfOptions } from './types.js';
 
 /** An absolute HTTPS URL, which is the only thing a buyer host can be. */
 const isHttpsUrl = (value: string): boolean => {
+  if (/\s/.test(value)) {
+    return false;
+  }
   try {
     const url = new URL(value);
-    return url.protocol === 'https:';
+    return (
+      url.protocol === 'https:' &&
+      url.hostname !== '' &&
+      url.username === '' &&
+      url.password === ''
+    );
   } catch {
     return false;
   }

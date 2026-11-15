@@ -31,6 +31,21 @@ assert.equal(
   'object',
   'the DGII environment enum must be re-exported',
 );
+assert.equal(
+  typeof esm.AMBIGUOUS_SUBMISSION_MESSAGE,
+  'string',
+  'AMBIGUOUS_SUBMISSION_MESSAGE must be re-exported from ESM build',
+);
+assert.equal(
+  typeof esm.PENDING_SUBMISSION_MESSAGE,
+  'string',
+  'PENDING_SUBMISSION_MESSAGE must be re-exported from ESM build',
+);
+assert.equal(
+  typeof esm.isSchemaUnavailableError,
+  'function',
+  'isSchemaUnavailableError must be re-exported from ESM build',
+);
 
 // The plugin must build, expose its provider and carry its whole surface.
 const plugin = esm.dgiiEcf({ credentials: () => ({ key: 'key', cert: 'cert' }) });
@@ -81,6 +96,21 @@ assert.equal(typeof cjs.dgiiEcf, 'function');
 assert.equal(
   cjs.dgiiEcf({ credentials: () => ({ key: 'k', cert: 'c' }) }).id,
   'dgii-ecf',
+);
+assert.equal(
+  typeof cjs.AMBIGUOUS_SUBMISSION_MESSAGE,
+  'string',
+  'AMBIGUOUS_SUBMISSION_MESSAGE must be re-exported from CJS build',
+);
+assert.equal(
+  typeof cjs.PENDING_SUBMISSION_MESSAGE,
+  'string',
+  'PENDING_SUBMISSION_MESSAGE must be re-exported from CJS build',
+);
+assert.equal(
+  typeof cjs.isSchemaUnavailableError,
+  'function',
+  'isSchemaUnavailableError must be re-exported from CJS build',
 );
 
 console.log(`smoke ok on node ${process.version}`);

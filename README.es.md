@@ -36,7 +36,7 @@ bun add @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 # o: npm install @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 ```
 
-Dependencias peer: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.6`.
+Dependencias peer: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.7`.
 
 ## 🚀 Inicio rápido — modo organización
 

@@ -29,6 +29,24 @@ describe('elementText', () => {
   it('is case-sensitive, as XML is', () => {
     expect(elementText('<a><encf>E31</encf></a>', 'eNCF')).toBeUndefined();
   });
+
+  it('scans an unclosed tag followed by 50 KiB of XML in under 50ms without backtracking', () => {
+    const junk = 'x'.repeat(50 * 1024);
+    const unclosed = `<ECF><eNCF>${junk}`;
+    const start = performance.now();
+    const result = elementText(unclosed, 'eNCF');
+    const elapsed = performance.now() - start;
+
+    expect(result).toBeUndefined();
+    expect(elapsed).toBeLessThan(50);
+
+    const startIssuer = performance.now();
+    const issuer = issuerTaxPayerId(`<ECF><RNCEmisor>${junk}`);
+    const elapsedIssuer = performance.now() - startIssuer;
+
+    expect(issuer).toBeUndefined();
+    expect(elapsedIssuer).toBeLessThan(50);
+  });
 });
 
 describe('rootElementName', () => {
