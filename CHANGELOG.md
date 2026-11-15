@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/deuriib/better-dgii-ecf/compare/v0.3.0...v0.4.0) (2026-11-15)
+
+
+### Features
+
+* **client:** support json invoices and upgrade @deuriib/dgii-ecf to 0.8.0 ([#55](https://github.com/deuriib/better-dgii-ecf/issues/55)) ([11cfa72](https://github.com/deuriib/better-dgii-ecf/commit/11cfa72fb6c0466e41403fd0f8506154166f4e53))
+
 ## [0.3.0](https://github.com/deuriib/better-dgii-ecf/compare/v0.2.0...v0.3.0) (2026-11-12)
 
 
