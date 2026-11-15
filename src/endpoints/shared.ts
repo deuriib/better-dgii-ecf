@@ -1,6 +1,12 @@
 import { APIError } from 'better-auth/api';
 import type { GenericEndpointContext } from '@better-auth/core';
-import { DgiiError, type DgiiResult, type ECF, Signature } from '@deuriib/dgii-ecf';
+import {
+  DgiiError,
+  type DgiiResult,
+  type ECF,
+  Signature,
+  Transformer,
+} from '@deuriib/dgii-ecf';
 import {
   badRequest,
   conflict,
@@ -142,6 +148,39 @@ export const signDocument = async (
     });
   }
   return signed.value;
+};
+
+export interface DocumentPayloadInput {
+  xml?: string | undefined;
+  json?: object | string | undefined;
+  round?: boolean | undefined;
+}
+
+/**
+ * Resolve the final XML document from either raw XML or a JSON invoice model.
+ *
+ * When `json` is provided, converts it to DGII XML using `Transformer.json2xml`.
+ * Monetary decimal values are rounded half-up by default (`round ?? true`).
+ */
+export const resolveDocumentXml = (input: DocumentPayloadInput): string => {
+  if (input.xml !== undefined) {
+    return input.xml;
+  }
+  if (input.json !== undefined) {
+    const round = input.round ?? true;
+    const result = Transformer.json2xml(input.json, round);
+    if (result.isErr()) {
+      throw badRequest(
+        DGII_ECF_ERROR_CODES.DGII_JSON_TRANSFORMATION_FAILED,
+        `JSON to XML conversion failed: ${result.error.message}`,
+      );
+    }
+    return result.value;
+  }
+  throw badRequest(
+    DGII_ECF_ERROR_CODES.DGII_JSON_TRANSFORMATION_FAILED,
+    'Either `xml` or `json` must be provided',
+  );
 };
 
 /**

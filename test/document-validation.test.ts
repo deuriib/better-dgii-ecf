@@ -115,4 +115,97 @@ describe('e-NCF validation', () => {
     const response = await auth.api.dgiiEcfSendDocument({ body: { xml }, headers });
     expect(response.replayed).toBe(false);
   });
+
+  it('accepts and submits an invoice authored as a JSON object', async () => {
+    const { auth, headers, fake } = await build();
+    const invoiceJson = {
+      ECF: {
+        Encabezado: {
+          Emisor: { RNCEmisor: TAXPAYER_A },
+          IdDoc: { eNCF: 'E310000000001' },
+          Totales: { MontoTotal: '100.005' },
+        },
+      },
+    };
+
+    const response = await auth.api.dgiiEcfSendDocument({
+      body: { json: invoiceJson, round: true },
+      headers,
+    });
+    expect(response.replayed).toBe(false);
+    expect(fake.methodNames()).toContain('sendDocument');
+    const sentXml = fake.calls.find((c) => c.method === 'sendDocument')
+      ?.args[0] as string;
+    expect(sentXml).toContain('<MontoTotal>100.01</MontoTotal>');
+    expect(sentXml).toContain(`<RNCEmisor>${TAXPAYER_A}</RNCEmisor>`);
+  });
+
+  it('preserves exact decimal amounts when round: false', async () => {
+    const { auth, headers, fake } = await build();
+    const invoiceJson = {
+      ECF: {
+        Encabezado: {
+          Emisor: { RNCEmisor: TAXPAYER_A },
+          IdDoc: { eNCF: 'E310000000002' },
+          Totales: { MontoTotal: '100.005' },
+        },
+      },
+    };
+
+    const response = await auth.api.dgiiEcfSendDocument({
+      body: { json: invoiceJson, round: false },
+      headers,
+    });
+    expect(response.replayed).toBe(false);
+    const sentXml = fake.calls.find((c) => c.method === 'sendDocument')
+      ?.args[0] as string;
+    expect(sentXml).toContain('<MontoTotal>100.005</MontoTotal>');
+  });
+
+  it('accepts an invoice authored as a JSON string', async () => {
+    const { auth, headers, fake } = await build();
+    const jsonStr = JSON.stringify({
+      ECF: {
+        Encabezado: {
+          Emisor: { RNCEmisor: TAXPAYER_A },
+          IdDoc: { eNCF: 'E310000000003' },
+        },
+      },
+    });
+
+    const response = await auth.api.dgiiEcfSendDocument({
+      body: { json: jsonStr },
+      headers,
+    });
+    expect(response.replayed).toBe(false);
+    expect(fake.methodNames()).toContain('sendDocument');
+  });
+
+  it('rejects an invalid JSON string with DGII_JSON_TRANSFORMATION_FAILED', async () => {
+    const { auth, headers } = await build();
+
+    await expect(
+      auth.api.dgiiEcfSendDocument({
+        body: { json: '{ not valid json' },
+        headers,
+      }),
+    ).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+      body: { code: 'DGII_JSON_TRANSFORMATION_FAILED' },
+    });
+  });
+
+  it('rejects when neither xml nor json is provided', async () => {
+    const { auth, headers } = await build();
+
+    await expect(
+      auth.api.dgiiEcfSendDocument({
+        body: {},
+        headers,
+      }),
+    ).rejects.toMatchObject({
+      status: 'BAD_REQUEST',
+      body: { code: 'DGII_JSON_TRANSFORMATION_FAILED' },
+    });
+  });
 });

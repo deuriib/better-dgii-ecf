@@ -46,6 +46,20 @@ assert.equal(
   'function',
   'isSchemaUnavailableError must be re-exported from ESM build',
 );
+assert.equal(
+  typeof esm.Transformer,
+  'function',
+  'Transformer must be re-exported from ESM build',
+);
+const jsonTransformed = esm.Transformer.json2xml(
+  { ECF: { Encabezado: { Totales: { MontoTotal: '10.005' } } } },
+  true,
+);
+assert.ok(jsonTransformed.isOk(), 'Transformer.json2xml must succeed');
+assert.ok(
+  jsonTransformed.value.includes('<MontoTotal>10.01</MontoTotal>'),
+  'Transformer half-up rounding must round 10.005 to 10.01',
+);
 
 // The plugin must build, expose its provider and carry its whole surface.
 const plugin = esm.dgiiEcf({ credentials: () => ({ key: 'key', cert: 'cert' }) });
@@ -111,6 +125,11 @@ assert.equal(
   typeof cjs.isSchemaUnavailableError,
   'function',
   'isSchemaUnavailableError must be re-exported from CJS build',
+);
+assert.equal(
+  typeof cjs.Transformer,
+  'function',
+  'Transformer must be re-exported from CJS build',
 );
 
 console.log(`smoke ok on node ${process.version}`);

@@ -75,6 +75,43 @@ describe('credential mode', () => {
     });
   });
 
+  it('attempts to sign converted JSON documents server-side', async () => {
+    const { auth, signInWithTestUser } = await signOnly({
+      credentials: () => fakeCredentials,
+    });
+    const { headers } = await signInWithTestUser();
+    const created = await auth.api.createOrganization({
+      body: { name: 'Emisor', slug: 'emisor-cred-json', taxPayerId: TAXPAYER_A },
+      headers,
+    });
+    await auth.api.setActiveOrganization({
+      body: { organizationId: created.id },
+      headers,
+    });
+
+    const failure = await auth.api
+      .dgiiEcfSendDocument({
+        body: {
+          json: {
+            ECF: {
+              Encabezado: {
+                Emisor: { RNCEmisor: TAXPAYER_A },
+                IdDoc: { eNCF: 'E310000000001' },
+              },
+            },
+          },
+          sign: true,
+        },
+        headers,
+      })
+      .catch((error: unknown) => error);
+
+    expect(failure).toMatchObject({
+      status: 'BAD_REQUEST',
+      body: { code: 'DGII_SIGNING_FAILED' },
+    });
+  });
+
   it('reports missing key material before attempting to sign', async () => {
     const { auth, signInWithTestUser } = await signOnly({
       credentials: () => ({}),

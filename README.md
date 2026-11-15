@@ -38,7 +38,7 @@ bun add @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 # or: npm install @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 ```
 
-Peer dependencies: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.7`.
+Peer dependencies: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.8`.
 
 ## 🚀 Quick start — organization mode
 
@@ -86,9 +86,11 @@ export const authClient = createAuthClient({
 ```
 
 ```ts
+// Submit XML or JSON invoice models
 const { data, error } = await authClient.dgiiEcf.documents({
-  xml: invoiceXml, // built by your application
-  sign: true, // signed here, with the organization's key
+  json: invoiceJson, // or xml: invoiceXml
+  round: true, // half-up monetary rounding (default: true)
+  sign: true, // signed server-side with the organization's key
 });
 ```
 

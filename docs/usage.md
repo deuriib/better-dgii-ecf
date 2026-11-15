@@ -282,6 +282,49 @@ dgiiEcf({
 
 The environment is part of the client cache key and is echoed in every response.
 
+## Working with JSON invoices
+
+DGII endpoints accept digitally signed XML (`xml: string`), but you can author invoices
+directly as JSON objects or JSON strings. Every document submission endpoint and the
+reconcile endpoint accept either `xml` or `json`.
+
+When `json` is provided:
+
+1. `Transformer.json2xml` automatically converts the JSON model into DGII compliant XML.
+2. Decimal monetary values are rounded half-up to two decimal places with
+   `round ?? true` (`2.665` → `2.67`, `-2.675` → `-2.68`). Pass `round: false` to
+   preserve exact raw values.
+3. If `sign: true` is passed, the resulting XML is signed server-side with the
+   organization's PKCS#12 credentials.
+
+```ts
+// Submit an invoice authored as a JSON object
+const response = await authClient.dgiiEcf.documents({
+  json: {
+    ECF: {
+      Encabezado: {
+        IdDoc: { TipoeCF: '31', eNCF: 'E310000000001' },
+        Emisor: { RNCEmisor: '131123456', RznSocEmis: 'ACME SRL' },
+        Totales: { MontoTotal: '1500.555' },
+      },
+    },
+  },
+  round: true, // default: true (rounds MontoTotal to 1500.56)
+  sign: true, // signs the generated XML server-side
+});
+```
+
+You can also re-export and use `Transformer` directly in your application:
+
+```ts
+import { Transformer } from '@deuriib/better-dgii-ecf';
+
+const xmlResult = Transformer.json2xml(invoiceJson, true);
+if (xmlResult.isOk()) {
+  console.log(xmlResult.value);
+}
+```
+
 ## Signing
 
 `sign: true` signs the XML server-side, with the resolved credentials, using the

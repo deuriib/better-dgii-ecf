@@ -55,6 +55,24 @@ describe('endpoint surface', () => {
     expect(fake.calls.at(-1)).toMatchObject({ method: 'reconcileSubmission' });
   });
 
+  it('reconciles a submission by JSON document', async () => {
+    const response = await auth.api.dgiiEcfReconcileSubmission({
+      body: {
+        json: {
+          ECF: {
+            Encabezado: {
+              Emisor: { RNCEmisor: TAXPAYER_A },
+              IdDoc: { eNCF: 'E310000000301' },
+            },
+          },
+        },
+      },
+      headers,
+    });
+    expect(response.result).toMatchObject({ delivered: true });
+    expect(fake.calls.at(-1)).toMatchObject({ method: 'reconcileSubmission' });
+  });
+
   it('reconciles an ANECF document through the RncEmisor spelling', async () => {
     const response = await auth.api.dgiiEcfReconcileSubmission({
       body: { xml: anecfXml(TAXPAYER_A) },
