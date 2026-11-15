@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/deuriib/better-dgii-ecf/compare/v0.4.0...v0.5.0) (2026-11-15)
+
+
+### Features
+
+* **types:** support typed EcfInvoice models from @deuriib/dgii-ecf 0.9.0 ([#57](https://github.com/deuriib/better-dgii-ecf/issues/57)) ([1a8f735](https://github.com/deuriib/better-dgii-ecf/commit/1a8f735680708caf6006f993b0cc1e9ad197b3d7))
+
 ## [0.4.0](https://github.com/deuriib/better-dgii-ecf/compare/v0.3.0...v0.4.0) (2026-11-15)
 
 
