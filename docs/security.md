@@ -48,7 +48,8 @@ the escalation where an organization admin claims any RNC and invoices as that t
 Direct buyer delivery authenticates against a buyer host by posting a signature made
 with the organization's private key. The URL therefore comes from `buyerDelivery.hosts`,
 never from a request: a request selects a configured name. Accepts HTTPS only, validates
-the configuration at construction, and never echoes the configured URLs back.
+the configuration at construction (rejecting embedded credentials, empty hostnames, and
+whitespace), and never echoes the configured URLs back.
 
 ### The document issuer must match the authorized taxpayer
 
@@ -57,12 +58,22 @@ Submitting a document whose `RNCEmisor` differs from the resolved taxpayer is re
 for an authorization: any member of any organization could build a valid document for
 another taxpayer, have it signed with their own certificate, and submit it.
 
+### Linear-time XML element extraction
+
+The plugin inspects document metadata (`RNCEmisor`, `RncEmisor`, `eNCF`, root element)
+using a single-pass, $O(\text{len}(\text{xml}))$ scanner that strips comments,
+declarations, and processing instructions without recursive backtracking regular
+expressions. Unterminated tags or maliciously crafted XML cannot trigger catastrophic
+backtracking (ReDoS).
+
 ### Retries cannot double-issue
 
 The replay key defaults to the SHA-256 of the signed document; the pending row is
 written before transmission. A `pending` record blocks a retry with `409` rather than
 guessing, because a duplicate fiscal document is worse than a failed request. The guard
 is in the database, not in memory, so it survives a restart and covers every replica.
+Submissions targeting a buyer host are scoped by destination so delivering a document to
+a buyer never hits the DGII replay entry.
 
 ### Authorization happens before credential resolution
 

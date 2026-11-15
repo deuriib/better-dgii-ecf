@@ -91,6 +91,7 @@ export const sendDocument = (deps: DgiiEcfEndpointDeps) =>
         operation: 'sendDocument',
         xml,
         idempotencyKey: ctx.body.idempotencyKey,
+        destination: buyerHost,
         send: () =>
           client.sendDocument(
             xml,
@@ -136,6 +137,7 @@ export const sendElectronicDocument = (deps: DgiiEcfEndpointDeps) =>
         operation: 'sendElectronicDocument',
         xml,
         idempotencyKey: ctx.body.idempotencyKey,
+        destination: buyerHost,
         send: () =>
           client.sendElectronicDocument(
             xml,
@@ -223,6 +225,7 @@ export const sendCommercialApproval = (deps: DgiiEcfEndpointDeps) =>
         operation: 'sendCommercialApproval',
         xml,
         idempotencyKey: ctx.body.idempotencyKey,
+        destination: buyerHost,
         send: () => {
           const fileName = ctx.body.fileName ?? fileNameFor(xml, 'approval');
           return buyerHost === undefined
@@ -290,9 +293,13 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
     '/dgii-ecf/documents/reconcile',
     {
       method: 'POST',
-      body: z.object({
+      body: z.strictObject({
         ...scopeShape,
         xml: z.string().min(1).meta({ description: 'The signed document, as XML.' }),
+        buyer: z.string().min(1).optional().meta({
+          description:
+            'Name of a configured buyer host (`buyerDelivery.hosts`) to reconcile against.',
+        }),
       }),
       use: [sessionMiddleware],
     },
@@ -300,7 +307,12 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
       const { scope, client } = await prepare(deps, ctx, ctx.body);
       assertIssuer(ctx.body.xml, scope.taxPayerId);
 
-      const result = unwrap(await client.reconcileSubmission(ctx.body.xml));
+      const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
+      const result = unwrap(
+        await (buyerHost === undefined
+          ? client.reconcileSubmission(ctx.body.xml)
+          : client.reconcileSubmission(ctx.body.xml, buyerHost)),
+      );
 
       // Reconcile is the only exit from `pending`/`unconfirmed`, so it has to
       // close the records it just settled — otherwise the conflict it resolves
@@ -313,6 +325,7 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
         encf: documentEncf(ctx.body.xml),
         delivered: result.delivered,
         response: result,
+        destination: buyerHost,
       });
 
       return ctx.json({ ...scopeEcho(scope), result, closedRecords });

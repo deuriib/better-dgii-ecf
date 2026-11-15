@@ -69,6 +69,7 @@ export interface ReplayKeyInput {
   readonly organizationId: string | null;
   readonly taxPayerId: string;
   readonly idempotencyKey: string;
+  readonly destination?: string | null | undefined;
 }
 
 /**
@@ -86,8 +87,14 @@ export const replayKeyFor = ({
   organizationId,
   taxPayerId,
   idempotencyKey,
-}: ReplayKeyInput): string =>
-  [environment, organizationId ?? '-', taxPayerId, idempotencyKey].join('\u0000');
+  destination,
+}: ReplayKeyInput): string => {
+  const parts = [environment, organizationId ?? '-', taxPayerId, idempotencyKey];
+  if (destination !== undefined && destination !== null && destination !== '') {
+    parts.push(destination.replace(/\/+$/, '').toLowerCase());
+  }
+  return parts.join('\u0000');
+};
 
 export interface BeginSubmissionInput extends ReplayKeyInput {
   readonly userId: string;
@@ -109,6 +116,7 @@ export interface ReconcileInput {
   /** DGII says the document exists. */
   readonly delivered: boolean;
   readonly response: unknown;
+  readonly destination?: string | null | undefined;
 }
 
 export interface ListSubmissionsInput {
@@ -339,15 +347,35 @@ export const createSubmissionStore = (
           { field: 'encf', value: input.encf },
         ],
       });
+      const normalizedDest =
+        input.destination !== undefined &&
+        input.destination !== null &&
+        input.destination !== ''
+          ? input.destination.replace(/\/+$/, '').toLowerCase()
+          : undefined;
+
       // Organization equality is applied here rather than in the query: a
       // single-tenant record has no organization, and "no organization" must
       // match only those rows — not "any organization", which is what omitting
-      // the filter would do.
-      const open = rows.filter(
-        (row) =>
-          OPEN_STATUSES.includes(row.status) &&
-          (row.organizationId ?? null) === input.organizationId,
-      );
+      // the filter would do. Reconciling a buyer delivery also scopes to that
+      // buyer destination so delivering to a buyer does not close a DGII attempt.
+      const open = rows.filter((row) => {
+        if (!OPEN_STATUSES.includes(row.status)) {
+          return false;
+        }
+        if ((row.organizationId ?? null) !== input.organizationId) {
+          return false;
+        }
+        if (row.replayKey) {
+          const parts = row.replayKey.split('\u0000');
+          const rowDest = parts[4];
+          if (normalizedDest !== undefined) {
+            return rowDest === normalizedDest;
+          }
+          return rowDest === undefined;
+        }
+        return normalizedDest === undefined;
+      });
       for (const row of open) {
         await complete(row.id, {
           status: input.delivered ? 'succeeded' : 'failed',

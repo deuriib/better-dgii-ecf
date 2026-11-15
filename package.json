@@ -69,7 +69,7 @@
     "ci": "mise run ci"
   },
   "peerDependencies": {
-    "@deuriib/dgii-ecf": "^0.6.1",
+    "@deuriib/dgii-ecf": "^0.7.0",
     "better-auth": "^1.7.22"
   },
   "dependencies": {
@@ -79,7 +79,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
-    "@deuriib/dgii-ecf": "^0.6.1",
+    "@deuriib/dgii-ecf": "^0.7.0",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^4.0.0",
     "better-auth": "^1.7.22",

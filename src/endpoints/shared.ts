@@ -1,7 +1,6 @@
 import { APIError } from 'better-auth/api';
 import type { GenericEndpointContext } from '@better-auth/core';
-import type { DgiiResult, ECF } from '@deuriib/dgii-ecf';
-import { Signature } from '@deuriib/dgii-ecf';
+import { DgiiError, type DgiiResult, type ECF, Signature } from '@deuriib/dgii-ecf';
 import {
   badRequest,
   conflict,
@@ -184,6 +183,8 @@ export interface RunSubmissionInput<T> {
   readonly xml: string;
   /** Caller-supplied idempotency key; defaults to the document hash. */
   readonly idempotencyKey?: string | undefined;
+  /** Destination host or buyer identifier scoping the replay key. */
+  readonly destination?: string | null | undefined;
   /** The actual transmission. Only called when a replay is not possible. */
   readonly send: () => Promise<DgiiResult<T>>;
 }
@@ -226,6 +227,7 @@ export const runSubmission = async <T>({
   operation,
   xml,
   idempotencyKey,
+  destination,
   send,
 }: RunSubmissionInput<T>): Promise<SubmissionOutcome<T>> => {
   const encf = documentEncf(xml);
@@ -240,6 +242,7 @@ export const runSubmission = async <T>({
     organizationId: scope.organizationId,
     taxPayerId: scope.taxPayerId,
     idempotencyKey: idempotencyKey ?? documentHash,
+    destination,
   };
 
   // A `failed` attempt is retried in place, which is why `begin` has to run
@@ -285,10 +288,14 @@ export const runSubmission = async <T>({
 
   if (raw.isErr()) {
     const error = raw.error;
+    const effectiveError =
+      error.code === 'IDEMPOTENCY' && error.cause instanceof DgiiError
+        ? error.cause
+        : error;
     // A definite rejection is safe to retry; anything else may have been
     // delivered, so it stays open until `reconcile` settles it.
     const status = isDefiniteRejection(error) ? 'failed' : 'unconfirmed';
-    await store.complete(submissionId, { status, errorCode: error.code });
+    await store.complete(submissionId, { status, errorCode: effectiveError.code });
     throw toApiError(error);
   }
 

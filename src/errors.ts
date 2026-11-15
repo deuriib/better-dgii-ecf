@@ -1,6 +1,6 @@
 import { APIError } from 'better-auth/api';
 import { defineErrorCodes } from '@better-auth/core/utils/error-codes';
-import type { DgiiError, DgiiErrorCode } from '@deuriib/dgii-ecf';
+import { DgiiError, type DgiiErrorCode } from '@deuriib/dgii-ecf';
 
 /**
  * Error codes this plugin can return.
@@ -73,12 +73,14 @@ const STATUS_BY_DGII_CODE: Record<DgiiErrorCode, Parameters<typeof APIError.from
     UNKNOWN: 'BAD_GATEWAY',
   };
 
-interface DgiiFailureDetail {
+export interface DgiiFailureDetail {
   readonly code: DgiiErrorCode;
   readonly status?: number | undefined;
   readonly statusText?: string | undefined;
   readonly resource?: string | undefined;
   readonly method?: string | undefined;
+  readonly retryable?: boolean | undefined;
+  readonly retryAfter?: number | undefined;
   readonly mensajes?: readonly { valor: string; codigo: number | string }[] | undefined;
 }
 
@@ -90,12 +92,14 @@ interface DgiiFailureDetail {
  * token — echoing it back in an error message would leak a credential into
  * logs, browser devtools and error trackers.
  */
-const toFailureDetail = (error: DgiiError): DgiiFailureDetail => ({
+export const toFailureDetail = (error: DgiiError): DgiiFailureDetail => ({
   code: error.code,
   status: error.status,
   statusText: error.statusText,
   resource: error.resource,
   method: error.method,
+  retryable: error.retryable,
+  retryAfter: error.retryAfter,
   mensajes: error.mensajes,
 });
 
@@ -130,12 +134,17 @@ export const serverError = (error: ErrorCodeLike, message?: string): APIError =>
   });
 
 /** Translate a DGII SDK failure into an `APIError` the client can branch on. */
-export const toApiError = (error: DgiiError): APIError =>
-  new APIError(STATUS_BY_DGII_CODE[error.code], {
+export const toApiError = (error: DgiiError): APIError => {
+  const effective =
+    error.code === 'IDEMPOTENCY' && error.cause instanceof DgiiError
+      ? error.cause
+      : error;
+  return new APIError(STATUS_BY_DGII_CODE[effective.code], {
     message: error.message,
     code: DGII_ECF_ERROR_CODES.DGII_REQUEST_FAILED.code,
-    dgii: toFailureDetail(error),
+    dgii: toFailureDetail(effective),
   });
+};
 
 /**
  * Whether a DGII failure proves the document was **not** received.
@@ -147,22 +156,31 @@ export const toApiError = (error: DgiiError): APIError =>
  * - A rejection, a validation/signing/certificate error, an authentication
  *   failure (which happens before transmission) and the SDK's own idempotency
  *   guard all mean nothing was delivered.
- * - A 4xx from DGII is DGII refusing the document.
+ * - A 4xx from DGII is DGII refusing the document (except 408 and 429).
  * - A timeout, a 5xx, a 408/429, an open circuit, a saturated bulkhead or an
  *   unrecognised failure mean the request may have been delivered.
  */
 export const isDefiniteRejection = (error: DgiiError): boolean => {
   switch (error.code) {
     case 'INVALID_XML':
-    case 'VALIDATION':
     case 'SIGNING':
     case 'CERTIFICATE':
     case 'AUTH':
-    case 'IDEMPOTENCY':
       return true;
+    case 'VALIDATION':
+      return !error.message.includes('reconcile');
+    case 'IDEMPOTENCY':
+      return error.cause instanceof DgiiError
+        ? isDefiniteRejection(error.cause)
+        : false;
     case 'HTTP':
-      // 4xx is a refusal; 5xx, 408 and 429 left the document's fate open.
-      return error.status !== undefined && error.status >= 400 && error.status < 500;
+      return (
+        error.status !== undefined &&
+        error.status >= 400 &&
+        error.status < 500 &&
+        error.status !== 408 &&
+        error.status !== 429
+      );
     case 'CIRCUIT_OPEN':
     case 'TIMEOUT':
     case 'UNKNOWN':

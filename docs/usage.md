@@ -328,31 +328,36 @@ Outcomes:
 
 Which one it is comes from the SDK error code:
 
-| DGII SDK code                                                     | Recorded as   |
-| ----------------------------------------------------------------- | ------------- |
-| `INVALID_XML`, `VALIDATION`, `SIGNING`, `CERTIFICATE`             | `failed`      |
-| `AUTH`, `IDEMPOTENCY`                                             | `failed`      |
-| `HTTP` with a 4xx status                                          | `failed`      |
-| `HTTP` with 5xx / 408 / 429, `TIMEOUT`, `CIRCUIT_OPEN`, `UNKNOWN` | `unconfirmed` |
-| a thrown non-`Result` error                                       | `unconfirmed` |
+| DGII SDK code                                                                                          | Recorded as   |
+| ------------------------------------------------------------------------------------------------------ | ------------- |
+| `INVALID_XML`, `VALIDATION` (pre-transmission), `SIGNING`, `CERTIFICATE`                               | `failed`      |
+| `AUTH`                                                                                                 | `failed`      |
+| `IDEMPOTENCY` with definite rejection cause                                                            | `failed`      |
+| `HTTP` with a 4xx status (except 408 / 429)                                                            | `failed`      |
+| `IDEMPOTENCY` (`PENDING_SUBMISSION_MESSAGE` / ambiguous transport), `VALIDATION` (post-2xx unreadable) | `unconfirmed` |
+| `HTTP` with 5xx / 408 / 429, `TIMEOUT`, `CIRCUIT_OPEN`, `UNKNOWN`                                      | `unconfirmed` |
+| a thrown non-`Result` error                                                                            | `unconfirmed` |
 
 Resolve an open record with the document itself — this is the only exit from
 `pending`/`unconfirmed`:
 
 ```ts
-const { data } = await authClient.dgiiEcf.documents.reconcile({ xml });
+const { data } = await authClient.dgiiEcf.documents.reconcile({ xml, buyer: 'acme' });
 // { result: { inquiry, delivered, canReuseSequence, cleared }, closedRecords: 1 }
 ```
 
 Reconcile **closes every open record for that e-NCF**: `delivered: true` closes it as
 `succeeded` (a later retry replays instead of re-sending), `delivered: false` closes it
-as `failed` (the retry may now transmit). `closedRecords` reports how many rows were
-settled, so a caller can tell "nothing was open" from "I just unblocked a submission".
+as `failed` (the retry may now transmit). When `buyer` is supplied, reconcile queries
+the configured buyer host and only settles open records scoped to that buyer
+destination. `closedRecords` reports how many rows were settled, so a caller can tell
+"nothing was open" from "I just unblocked a submission".
 
 The replay key is
-`environment + organization + taxpayer + (idempotencyKey ?? sha256(xml))`. A
-certification document therefore cannot replay a production one, and two organizations
-that share an RNC cannot see each other's submissions.
+`environment + organization + taxpayer + (idempotencyKey ?? sha256(xml)) + (destination ?? '')`.
+A certification document therefore cannot replay a production one, two organizations
+that share an RNC cannot see each other's submissions, and delivering to DGII versus a
+configured buyer host keeps separate replay entries.
 
 Disable persistence entirely when you already have a durable outbox:
 
@@ -370,26 +375,26 @@ Every endpoint requires an authenticated session and resolves a taxpayer
 takes the RNC from the signed document itself, and the issuer is still checked against
 the authorized taxpayer.
 
-| Method | Path                                      | Client                                 | DGII operation      | Needs                  |
-| ------ | ----------------------------------------- | -------------------------------------- | ------------------- | ---------------------- |
-| `GET`  | `/dgii-ecf/taxpayer`                      | `dgiiEcf.taxpayer`                     | —                   | —                      |
-| `POST` | `/dgii-ecf/authenticate`                  | `dgiiEcf.authenticate`                 | seed + token        | credentials            |
-| `POST` | `/dgii-ecf/documents`                     | `dgiiEcf.documents`                    | routed by document  | XML, issuer = taxpayer |
-| `POST` | `/dgii-ecf/documents/electronic`          | `dgiiEcf.documents.electronic`         | general reception   | XML, issuer = taxpayer |
-| `POST` | `/dgii-ecf/documents/summary`             | `dgiiEcf.documents.summary`            | RFCE reception      | XML, issuer = taxpayer |
-| `POST` | `/dgii-ecf/documents/commercial-approval` | `dgiiEcf.documents.commercialApproval` | ACECF               | XML, issuer = taxpayer |
-| `POST` | `/dgii-ecf/documents/void-range`          | `dgiiEcf.documents.voidRange`          | ANECF               | XML, issuer = taxpayer |
-| `POST` | `/dgii-ecf/documents/reconcile`           | `dgiiEcf.documents.reconcile`          | inquiry + tracks    | XML, issuer = taxpayer |
-| `GET`  | `/dgii-ecf/tracks`                        | `dgiiEcf.tracks`                       | `consultaresultado` | —                      |
-| `POST` | `/dgii-ecf/inquiries/status`              | `dgiiEcf.inquiries.status`             | `consultaestado`    | —                      |
-| `POST` | `/dgii-ecf/inquiries/tracks`              | `dgiiEcf.inquiries.tracks`             | `consultatrackids`  | —                      |
-| `POST` | `/dgii-ecf/inquiries/summary`             | `dgiiEcf.inquiries.summary`            | RFCE inquiry (prod) | production environment |
-| `GET`  | `/dgii-ecf/directories/customers`         | `dgiiEcf.directories.customers`        | directory by RNC    | —                      |
-| `GET`  | `/dgii-ecf/directories/all`               | `dgiiEcf.directories.all`              | full directory      | —                      |
-| `GET`  | `/dgii-ecf/service-status`                | `dgiiEcf.serviceStatus`                | service status      | `status.apiKey`        |
-| `GET`  | `/dgii-ecf/maintenance-windows`           | `dgiiEcf.maintenanceWindows`           | maintenance windows | `status.apiKey`        |
-| `GET`  | `/dgii-ecf/service-availability`          | `dgiiEcf.serviceAvailability`          | availability check  | `status.apiKey`        |
-| `GET`  | `/dgii-ecf/submissions`                   | `dgiiEcf.submissions`                  | —                   | persistence on         |
+| Method | Path                                      | Client                                 | DGII operation      | Needs                                    |
+| ------ | ----------------------------------------- | -------------------------------------- | ------------------- | ---------------------------------------- |
+| `GET`  | `/dgii-ecf/taxpayer`                      | `dgiiEcf.taxpayer`                     | —                   | —                                        |
+| `POST` | `/dgii-ecf/authenticate`                  | `dgiiEcf.authenticate`                 | seed + token        | credentials                              |
+| `POST` | `/dgii-ecf/documents`                     | `dgiiEcf.documents`                    | routed by document  | XML, issuer = taxpayer                   |
+| `POST` | `/dgii-ecf/documents/electronic`          | `dgiiEcf.documents.electronic`         | general reception   | XML, issuer = taxpayer                   |
+| `POST` | `/dgii-ecf/documents/summary`             | `dgiiEcf.documents.summary`            | RFCE reception      | XML, issuer = taxpayer                   |
+| `POST` | `/dgii-ecf/documents/commercial-approval` | `dgiiEcf.documents.commercialApproval` | ACECF               | XML, issuer = taxpayer                   |
+| `POST` | `/dgii-ecf/documents/void-range`          | `dgiiEcf.documents.voidRange`          | ANECF               | XML, issuer = taxpayer                   |
+| `POST` | `/dgii-ecf/documents/reconcile`           | `dgiiEcf.documents.reconcile`          | inquiry + tracks    | XML, issuer = taxpayer, optional `buyer` |
+| `GET`  | `/dgii-ecf/tracks`                        | `dgiiEcf.tracks`                       | `consultaresultado` | —                                        |
+| `POST` | `/dgii-ecf/inquiries/status`              | `dgiiEcf.inquiries.status`             | `consultaestado`    | —                                        |
+| `POST` | `/dgii-ecf/inquiries/tracks`              | `dgiiEcf.inquiries.tracks`             | `consultatrackids`  | —                                        |
+| `POST` | `/dgii-ecf/inquiries/summary`             | `dgiiEcf.inquiries.summary`            | RFCE inquiry (prod) | production environment                   |
+| `GET`  | `/dgii-ecf/directories/customers`         | `dgiiEcf.directories.customers`        | directory by RNC    | —                                        |
+| `GET`  | `/dgii-ecf/directories/all`               | `dgiiEcf.directories.all`              | full directory      | —                                        |
+| `GET`  | `/dgii-ecf/service-status`                | `dgiiEcf.serviceStatus`                | service status      | `status.apiKey`                          |
+| `GET`  | `/dgii-ecf/maintenance-windows`           | `dgiiEcf.maintenanceWindows`           | maintenance windows | `status.apiKey`                          |
+| `GET`  | `/dgii-ecf/service-availability`          | `dgiiEcf.serviceAvailability`          | availability check  | `status.apiKey`                          |
+| `GET`  | `/dgii-ecf/submissions`                   | `dgiiEcf.submissions`                  | —                   | persistence on                           |
 
 The endpoints that transmit sign the document when `sign: true` is sent, record the
 attempt, and replay a known submission (`replayed: true`) instead of re-sending it.
@@ -481,22 +486,26 @@ Server-side, the same endpoints are available as `auth.api.dgiiEcfSendDocument`,
 
 ## Configuration reference
 
-| Option                          | Type                                                    | Default              | Notes                                    |
-| ------------------------------- | ------------------------------------------------------- | -------------------- | ---------------------------------------- |
-| `environment`                   | `Environment \| (scope) => Environment`                 | `Environment.Dev`    | Certification environments are opt-in    |
-| `credentials`                   | `(scope) => P12ReaderData \| null`                      | —                    | Required unless `getClient`              |
-| `getClient`                     | `(scope) => ECF \| null`                                | —                    | Disables caching and signing             |
-| `resolveTaxPayerId`             | `({ user, session, organizationId }) => string \| null` | —                    | Last resolution source                   |
-| `authorize`                     | `(context) => boolean`                                  | —                    | Replaces the built-in policy             |
-| `organization.field`            | `string`                                                | `'taxPayerId'`       | Field read from the organization         |
-| `organization.extendSchema`     | `boolean`                                               | `false`              | Read-only field registration             |
-| `roles`                         | `string[]`                                              | `['owner', 'admin']` | Roles allowed to invoice                 |
-| `allowUntrustedTaxPayerId`      | `boolean`                                               | `false`              | Request-supplied id with no organization |
-| `validateTaxPayerId`            | `'format' \| 'off' \| validator`                        | `'format'`           | Shape policy                             |
-| `persistence.enabled`           | `boolean`                                               | `true`               | Audit + replay guard                     |
-| `persistence.storeResponses`    | `boolean`                                               | `true`               | Keep the DGII answer for replays         |
-| `persistence.maxResponseLength` | `number`                                                | `8192`               | Truncation bound                         |
-| `clientCache.maxSize`           | `number`                                                | `50`                 | Cached `ECF` instances                   |
-| `clientCache.ttlMs`             | `number`                                                | `600000`             | Reuse window                             |
-| `status.apiKey`                 | `string`                                                | —                    | DGII status service key                  |
-| `timeoutMs`                     | `number`                                                | SDK default          | Forwarded to the SDK                     |
+| Option                          | Type                                                    | Default              | Notes                                     |
+| ------------------------------- | ------------------------------------------------------- | -------------------- | ----------------------------------------- |
+| `environment`                   | `Environment \| (scope) => Environment`                 | `Environment.Dev`    | Certification environments are opt-in     |
+| `credentials`                   | `(scope) => P12ReaderData \| null`                      | —                    | Required unless `getClient`               |
+| `getClient`                     | `(scope) => ECF \| null`                                | —                    | Disables caching and signing              |
+| `resolveTaxPayerId`             | `({ user, session, organizationId }) => string \| null` | —                    | Last resolution source                    |
+| `authorize`                     | `(context) => boolean`                                  | —                    | Replaces the built-in policy              |
+| `organization.field`            | `string`                                                | `'taxPayerId'`       | Field read from the organization          |
+| `organization.extendSchema`     | `boolean`                                               | `false`              | Read-only field registration              |
+| `roles`                         | `string[]`                                              | `['owner', 'admin']` | Roles allowed to invoice                  |
+| `allowUntrustedTaxPayerId`      | `boolean`                                               | `false`              | Request-supplied id with no organization  |
+| `validateTaxPayerId`            | `'format' \| 'off' \| validator`                        | `'format'`           | Shape policy                              |
+| `persistence.enabled`           | `boolean`                                               | `true`               | Audit + replay guard                      |
+| `persistence.storeResponses`    | `boolean`                                               | `true`               | Keep the DGII answer for replays          |
+| `persistence.maxResponseLength` | `number`                                                | `8192`               | Truncation bound                          |
+| `clientCache.maxSize`           | `number`                                                | `50`                 | Cached `ECF` instances                    |
+| `clientCache.ttlMs`             | `number`                                                | `600000`             | Reuse window                              |
+| `status.apiKey`                 | `string`                                                | —                    | DGII status service key                   |
+| `timeoutMs`                     | `number`                                                | SDK default          | Forwarded to the SDK                      |
+| `onEvent`                       | `(event: EcfEvent) => void`                             | —                    | Telemetry event callback forwarded to SDK |
+| `resilience`                    | `ResilienceOptions`                                     | —                    | Circuit breaker and retry policy options  |
+| `validateBeforeSend`            | `boolean`                                               | `false`              | Schema validation via xmllint before send |
+| `xmllintBin`                    | `string`                                                | —                    | Path to xmllint executable                |

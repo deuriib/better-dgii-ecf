@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BetterAuthError } from '@better-auth/core/error';
-import { Environment } from '@deuriib/dgii-ecf';
+import { Environment, type ResilienceOptions } from '@deuriib/dgii-ecf';
 import { createClientProvider } from '../src/client-provider.js';
 import type { DgiiEcfScope } from '../src/types.js';
 import { fakeCredentials, TAXPAYER_A, TAXPAYER_B } from './helpers.js';
@@ -145,5 +145,28 @@ describe('createClientProvider', () => {
     // The SDK keeps the timeout on its HTTP layer; asserting the value proves the
     // option was forwarded rather than dropped.
     expect(client.http).toBeDefined();
+  });
+
+  it('forwards onEvent, resilience, validateBeforeSend, and xmllintBin to the built client', async () => {
+    const onEvent = vi.fn();
+    const resilience: ResilienceOptions = {
+      maxRetries: 5,
+    };
+    const provider = createClientProvider({
+      credentials: () => fakeCredentials,
+      onEvent,
+      resilience,
+      validateBeforeSend: true,
+      xmllintBin: '/usr/bin/xmllint',
+    });
+    const client = (await provider.get(scope(TAXPAYER_A))) as unknown as {
+      onEvent?: unknown;
+      validateBeforeSend?: boolean;
+      xmllintBin?: string;
+    };
+
+    expect(client.onEvent).toBe(onEvent);
+    expect(client.validateBeforeSend).toBe(true);
+    expect(client.xmllintBin).toBe('/usr/bin/xmllint');
   });
 });

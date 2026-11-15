@@ -165,6 +165,49 @@ describe('buyer delivery', () => {
       args: ['https://fe.acme.example'],
     });
   });
+
+  it('submits to DGII and then delivers to buyer without replaying from DGII', async () => {
+    const { auth, headers, fake } = await build({
+      hosts: { acme: 'https://fe.acme.example' },
+    });
+    const xml = documentXml(TAXPAYER_A, 'E310000000807');
+
+    const dgiiResponse = await auth.api.dgiiEcfSendDocument({
+      body: { xml },
+      headers,
+    });
+    expect(dgiiResponse.replayed).toBe(false);
+
+    const buyerResponse = await auth.api.dgiiEcfSendDocument({
+      body: { xml, buyer: 'acme' },
+      headers,
+    });
+    expect(buyerResponse.replayed).toBe(false);
+    expect(buyerResponse.submissionId).not.toBe(dgiiResponse.submissionId);
+
+    const sendDocumentCalls = fake.calls.filter((c) => c.method === 'sendDocument');
+    expect(sendDocumentCalls).toHaveLength(2);
+    expect(sendDocumentCalls[0]?.args[2]).toBeUndefined();
+    expect(sendDocumentCalls[1]?.args[2]).toBe('https://fe.acme.example');
+  });
+
+  it('forwards buyerHost to client.reconcileSubmission when buyer is passed', async () => {
+    const { auth, headers, fake } = await build({
+      hosts: { acme: 'https://fe.acme.example' },
+    });
+    const xml = documentXml(TAXPAYER_A, 'E310000000808');
+
+    const reconciled = await auth.api.dgiiEcfReconcileSubmission({
+      body: { xml, buyer: 'acme' },
+      headers,
+    });
+
+    expect(reconciled).toMatchObject({ closedRecords: 0 });
+    expect(fake.calls.at(-1)).toMatchObject({
+      method: 'reconcileSubmission',
+      args: [expect.any(String), 'https://fe.acme.example'],
+    });
+  });
 });
 
 describe('buyer delivery configuration', () => {
@@ -192,6 +235,47 @@ describe('buyer delivery configuration', () => {
     expect(() => dgiiEcf({ ...base, buyerDelivery: { hosts: {} } })).toThrow(
       /hosts\` is empty/,
     );
+  });
+
+  it('rejects a host with embedded credentials at construction', () => {
+    expect(() =>
+      dgiiEcf({
+        ...base,
+        buyerDelivery: { hosts: { acme: 'https://user:pass@fe.acme.example' } },
+      }),
+    ).toThrow(/https URL/);
+
+    expect(() =>
+      dgiiEcf({
+        ...base,
+        buyerDelivery: { hosts: { acme: 'https://user@fe.acme.example' } },
+      }),
+    ).toThrow(/https URL/);
+  });
+
+  it('rejects a host with whitespace at construction', () => {
+    expect(() =>
+      dgiiEcf({
+        ...base,
+        buyerDelivery: { hosts: { acme: 'https://fe.acme.example /test' } },
+      }),
+    ).toThrow(/https URL/);
+
+    expect(() =>
+      dgiiEcf({
+        ...base,
+        buyerDelivery: { hosts: { acme: ' https://fe.acme.example' } },
+      }),
+    ).toThrow(/https URL/);
+  });
+
+  it('rejects a host without a hostname at construction', () => {
+    expect(() =>
+      dgiiEcf({
+        ...base,
+        buyerDelivery: { hosts: { acme: 'https://' } },
+      }),
+    ).toThrow(/https URL/);
   });
 
   it('accepts a valid map', () => {
