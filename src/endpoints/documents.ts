@@ -10,6 +10,7 @@ import {
   type DgiiEcfEndpointDeps,
   documentEncf,
   prepare,
+  resolveDocumentXml,
   runSubmission,
   scopeEcho,
   signDocument,
@@ -21,11 +22,13 @@ import { resolveBuyerHost } from '../buyer-delivery.js';
 /**
  * Document transmission endpoints.
  *
- * Every one of them takes XML — signed already, or signable — never a JSON
- * invoice model: building a DGII document is a domain problem the host owns,
- * while signing and transmitting are the plugin's. `sign: true` moves the
- * signature server-side, next to the key, which is the reason a browser can call
- * these endpoints at all without ever holding a certificate.
+ * Every one of them accepts either `xml` (as a signed or signable string) or
+ * `json` (as an invoice object or JSON string) — building a DGII document is a
+ * domain problem the host owns, while converting, signing, and transmitting are
+ * the plugin's. When `json` is provided, `Transformer.json2xml` transforms it
+ * with monetary half-up rounding (`round ?? true`). `sign: true` moves the
+ * signature server-side, next to the key, which is the reason a browser can
+ * call these endpoints at all without ever holding a certificate.
  */
 
 const scopeShape = {
@@ -41,7 +44,18 @@ const scopeShape = {
 
 const documentShape = {
   ...scopeShape,
-  xml: z.string().min(1).meta({ description: 'The DGII document, as XML.' }),
+  xml: z.string().min(1).optional().meta({ description: 'The DGII document, as XML.' }),
+  json: z
+    .union([z.record(z.string(), z.unknown()), z.string().min(1)])
+    .optional()
+    .meta({
+      description:
+        'The DGII document, as a JSON invoice model or raw JSON string. Transformed to XML via `Transformer.json2xml`.',
+    }),
+  round: z.boolean().optional().meta({
+    description:
+      'Whether monetary values are rounded half-up to two decimal places when converting from JSON. Defaults to `true`.',
+  }),
   fileName: z.string().min(1).max(255).optional().meta({
     description: 'Multipart file name sent to DGII. Defaults to the document e-NCF.',
   }),
@@ -78,10 +92,9 @@ export const sendDocument = (deps: DgiiEcfEndpointDeps) =>
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
       const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
+      const rawXml = resolveDocumentXml(ctx.body);
       const xml =
-        ctx.body.sign === true
-          ? await signDocument(deps, scope, ctx.body.xml)
-          : ctx.body.xml;
+        ctx.body.sign === true ? await signDocument(deps, scope, rawXml) : rawXml;
       assertIssuer(xml, scope.taxPayerId);
 
       const outcome = await runSubmission({
@@ -124,10 +137,9 @@ export const sendElectronicDocument = (deps: DgiiEcfEndpointDeps) =>
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
       const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
+      const rawXml = resolveDocumentXml(ctx.body);
       const xml =
-        ctx.body.sign === true
-          ? await signDocument(deps, scope, ctx.body.xml)
-          : ctx.body.xml;
+        ctx.body.sign === true ? await signDocument(deps, scope, rawXml) : rawXml;
       assertIssuer(xml, scope.taxPayerId);
 
       const outcome = await runSubmission<InvoiceResponse>({
@@ -166,10 +178,9 @@ export const sendSummary = (deps: DgiiEcfEndpointDeps) =>
     },
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
+      const rawXml = resolveDocumentXml(ctx.body);
       const xml =
-        ctx.body.sign === true
-          ? await signDocument(deps, scope, ctx.body.xml)
-          : ctx.body.xml;
+        ctx.body.sign === true ? await signDocument(deps, scope, rawXml) : rawXml;
       assertIssuer(xml, scope.taxPayerId);
 
       const outcome = await runSubmission({
@@ -209,10 +220,9 @@ export const sendCommercialApproval = (deps: DgiiEcfEndpointDeps) =>
     },
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
+      const rawXml = resolveDocumentXml(ctx.body);
       const xml =
-        ctx.body.sign === true
-          ? await signDocument(deps, scope, ctx.body.xml)
-          : ctx.body.xml;
+        ctx.body.sign === true ? await signDocument(deps, scope, rawXml) : rawXml;
       assertIssuer(xml, scope.taxPayerId);
 
       const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
@@ -254,10 +264,9 @@ export const voidENCF = (deps: DgiiEcfEndpointDeps) =>
     },
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
+      const rawXml = resolveDocumentXml(ctx.body);
       const xml =
-        ctx.body.sign === true
-          ? await signDocument(deps, scope, ctx.body.xml)
-          : ctx.body.xml;
+        ctx.body.sign === true ? await signDocument(deps, scope, rawXml) : rawXml;
       assertIssuer(xml, scope.taxPayerId);
 
       const outcome = await runSubmission({
@@ -295,7 +304,21 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
       method: 'POST',
       body: z.strictObject({
         ...scopeShape,
-        xml: z.string().min(1).meta({ description: 'The signed document, as XML.' }),
+        xml: z
+          .string()
+          .min(1)
+          .optional()
+          .meta({ description: 'The signed document, as XML.' }),
+        json: z
+          .union([z.record(z.string(), z.unknown()), z.string().min(1)])
+          .optional()
+          .meta({
+            description: 'The document, as a JSON invoice model or raw JSON string.',
+          }),
+        round: z.boolean().optional().meta({
+          description:
+            'Whether monetary values are rounded half-up to two decimal places when converting from JSON. Defaults to `true`.',
+        }),
         buyer: z.string().min(1).optional().meta({
           description:
             'Name of a configured buyer host (`buyerDelivery.hosts`) to reconcile against.',
@@ -305,13 +328,14 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
     },
     async (ctx) => {
       const { scope, client } = await prepare(deps, ctx, ctx.body);
-      assertIssuer(ctx.body.xml, scope.taxPayerId);
+      const xml = resolveDocumentXml(ctx.body);
+      assertIssuer(xml, scope.taxPayerId);
 
       const buyerHost = resolveBuyerHost(deps.options, ctx.body.buyer);
       const result = unwrap(
         await (buyerHost === undefined
-          ? client.reconcileSubmission(ctx.body.xml)
-          : client.reconcileSubmission(ctx.body.xml, buyerHost)),
+          ? client.reconcileSubmission(xml)
+          : client.reconcileSubmission(xml, buyerHost)),
       );
 
       // Reconcile is the only exit from `pending`/`unconfirmed`, so it has to
@@ -322,7 +346,7 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
         environment: scope.environment,
         organizationId: scope.organizationId,
         taxPayerId: scope.taxPayerId,
-        encf: documentEncf(ctx.body.xml),
+        encf: documentEncf(xml),
         delivered: result.delivered,
         response: result,
         destination: buyerHost,

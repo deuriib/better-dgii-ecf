@@ -36,7 +36,7 @@ bun add @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 # o: npm install @deuriib/better-dgii-ecf @deuriib/dgii-ecf better-auth
 ```
 
-Dependencias peer: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.7`.
+Dependencias peer: `better-auth@^1.7`, `@deuriib/dgii-ecf@^0.8`.
 
 ## 🚀 Inicio rápido — modo organización
 
@@ -84,9 +84,11 @@ export const authClient = createAuthClient({
 ```
 
 ```ts
+// Enviar factura en XML o JSON
 const { data, error } = await authClient.dgiiEcf.documents({
-  xml: invoiceXml, // construido por tu aplicación
-  sign: true, // firmado aquí, con la llave de la organización
+  json: invoiceJson, // o xml: invoiceXml
+  round: true, // redondeo monetario half-up (por defecto: true)
+  sign: true, // firmado en el servidor con la llave de la organización
 });
 ```
 

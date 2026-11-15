@@ -48,4 +48,5 @@ export {
   Environment,
   isSchemaUnavailableError,
   PENDING_SUBMISSION_MESSAGE,
+  Transformer,
 } from '@deuriib/dgii-ecf';

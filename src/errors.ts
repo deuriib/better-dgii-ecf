@@ -40,6 +40,8 @@ export const DGII_ECF_ERROR_CODES = defineErrorCodes({
     'The document carries an e-NCF that does not match the DGII format (E + type + sequence)',
   DGII_DOCUMENT_UNREADABLE:
     'The signed document carries no issuer taxpayer id (RNCEmisor / RncEmisor)',
+  DGII_JSON_TRANSFORMATION_FAILED:
+    'The JSON document could not be converted to DGII XML',
   DGII_SIGNING_FAILED: 'The document could not be signed with the organization key',
   DGII_REQUEST_FAILED: 'The DGII request failed',
   DGII_PERSISTENCE_UNAVAILABLE:

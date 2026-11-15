@@ -185,16 +185,27 @@ the audit listing.
 
 Nothing sensitive is stored: no XML, no key material, no token, no certificate password.
 
-## Why XML in, XML out
+## JSON transformation and XML handling
 
-The DGII SDK signs and transmits XML; it does not model invoices. The plugin keeps that
-boundary: building an e-CF from a domain model is an application decision (taxes, items,
-totals, NCF sequences, retention rules) and belongs where the domain lives.
+While DGII endpoints communicate via XMLDSig-signed XML, the plugin accepts invoices
+authored as JSON objects or raw JSON strings across all document submission and
+reconciliation endpoints.
+
+When a JSON document is supplied:
+
+1. `Transformer.json2xml(json, round ?? true)` transforms the JSON invoice
+   representation into canonical DGII XML.
+2. Decimal monetary values are rounded half-up (`round: true` by default) to prevent
+   floating point discrepancies with DGII's strict validation rules.
+3. If transformation fails, it is rejected before persistence or signing with
+   `400 DGII_JSON_TRANSFORMATION_FAILED`.
+4. If `sign: true` is requested, the converted XML is signed server-side with the
+   resolved credentials before submission.
 
 The plugin reads exactly two things from a document — the issuer and the root element —
 with a tolerant, namespace-aware reader. Both reads exist to _refuse_ something: a
 document for another taxpayer, and a signing call on a document with no root. Neither
-reads is used to build a response.
+read is used to build a response.
 
 ## Testing strategy
 
