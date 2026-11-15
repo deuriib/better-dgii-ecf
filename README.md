@@ -86,9 +86,9 @@ export const authClient = createAuthClient({
 ```
 
 ```ts
-// Submit XML or JSON invoice models
+// Submit XML or strongly-typed JSON invoice models (EcfInvoice)
 const { data, error } = await authClient.dgiiEcf.documents({
-  json: invoiceJson, // or xml: invoiceXml
+  json: invoice, // typed EcfInvoice object, record, or raw JSON string
   round: true, // half-up monetary rounding (default: true)
   sign: true, // signed server-side with the organization's key
 });

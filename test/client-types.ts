@@ -7,7 +7,7 @@
  * from the server plugin's endpoints — nothing here is hand-written in `src`.
  */
 import { createAuthClient } from 'better-auth/client';
-import { dgiiEcfClient } from '../src/client.js';
+import { dgiiEcfClient, type EcfInvoice } from '../src/client.js';
 
 const client = createAuthClient({ plugins: [dgiiEcfClient()] });
 
@@ -64,5 +64,10 @@ export const declaresEveryEndpoint: ExpectedEndpoints extends keyof DgiiEcfNames
 export const declaresNothingElse: 'notAnEndpoint' extends keyof DgiiEcfNamespace
   ? never
   : true = true;
+
+// Verify that client document transmission endpoints accept strongly typed EcfInvoice
+export const testTypeInvoiceSubmission = async (invoice: EcfInvoice) => {
+  return api.documents.send({ json: invoice, sign: true });
+};
 
 export type { api as DgiiEcfClientApi };

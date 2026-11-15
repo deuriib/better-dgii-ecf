@@ -3,6 +3,7 @@ import * as z from 'zod';
 import type {
   B2BCommercialApprovalResponse,
   CommercialApprovalResponse,
+  EcfInvoice,
   InvoiceResponse,
 } from '@deuriib/dgii-ecf';
 import {
@@ -42,16 +43,21 @@ const scopeShape = {
   }),
 };
 
+const jsonInvoiceSchema = z.union([
+  z.custom<EcfInvoice | Record<string, unknown>>(
+    (val) => typeof val === 'object' && val !== null && !Array.isArray(val),
+    { message: 'Expected an invoice object' },
+  ),
+  z.string().min(1),
+]);
+
 const documentShape = {
   ...scopeShape,
   xml: z.string().min(1).optional().meta({ description: 'The DGII document, as XML.' }),
-  json: z
-    .union([z.record(z.string(), z.unknown()), z.string().min(1)])
-    .optional()
-    .meta({
-      description:
-        'The DGII document, as a JSON invoice model or raw JSON string. Transformed to XML via `Transformer.json2xml`.',
-    }),
+  json: jsonInvoiceSchema.optional().meta({
+    description:
+      'The DGII document, as a JSON invoice model or raw JSON string. Transformed to XML via `Transformer.json2xml`.',
+  }),
   round: z.boolean().optional().meta({
     description:
       'Whether monetary values are rounded half-up to two decimal places when converting from JSON. Defaults to `true`.',
@@ -309,12 +315,9 @@ export const reconcileSubmission = (deps: DgiiEcfEndpointDeps) =>
           .min(1)
           .optional()
           .meta({ description: 'The signed document, as XML.' }),
-        json: z
-          .union([z.record(z.string(), z.unknown()), z.string().min(1)])
-          .optional()
-          .meta({
-            description: 'The document, as a JSON invoice model or raw JSON string.',
-          }),
+        json: jsonInvoiceSchema.optional().meta({
+          description: 'The document, as a JSON invoice model or raw JSON string.',
+        }),
         round: z.boolean().optional().meta({
           description:
             'Whether monetary values are rounded half-up to two decimal places when converting from JSON. Defaults to `true`.',
