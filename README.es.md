@@ -84,9 +84,9 @@ export const authClient = createAuthClient({
 ```
 
 ```ts
-// Enviar factura en XML o JSON
+// Enviar factura en XML o modelo JSON tipado (EcfInvoice)
 const { data, error } = await authClient.dgiiEcf.documents({
-  json: invoiceJson, // o xml: invoiceXml
+  json: invoice, // objeto EcfInvoice tipado, record o string JSON
   round: true, // redondeo monetario half-up (por defecto: true)
   sign: true, // firmado en el servidor con la llave de la organización
 });

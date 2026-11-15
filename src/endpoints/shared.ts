@@ -4,6 +4,7 @@ import {
   DgiiError,
   type DgiiResult,
   type ECF,
+  type EcfInvoice,
   Signature,
   Transformer,
 } from '@deuriib/dgii-ecf';
@@ -152,7 +153,7 @@ export const signDocument = async (
 
 export interface DocumentPayloadInput {
   xml?: string | undefined;
-  json?: object | string | undefined;
+  json?: EcfInvoice | Record<string, unknown> | string | undefined;
   round?: boolean | undefined;
 }
 

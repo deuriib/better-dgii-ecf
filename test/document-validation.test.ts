@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { organization } from 'better-auth/plugins';
 import { getTestInstance } from 'better-auth/test';
 import { Environment } from '@deuriib/dgii-ecf';
-import { dgiiEcf, dgiiEcfOrganizationSchema } from '../src/index.js';
+import {
+  dgiiEcf,
+  dgiiEcfOrganizationSchema,
+  type EcfInvoice,
+  Transformer,
+} from '../src/index.js';
 import { createFakeEcf, TAXPAYER_A } from './helpers.js';
 
 /**
@@ -179,6 +184,77 @@ describe('e-NCF validation', () => {
     });
     expect(response.replayed).toBe(false);
     expect(fake.methodNames()).toContain('sendDocument');
+  });
+
+  it('accepts a strongly-typed EcfInvoice object and converts it via Transformer', async () => {
+    const { auth, headers, fake } = await build();
+    const invoice: EcfInvoice = {
+      ECF: {
+        Encabezado: {
+          Version: '1.0',
+          IdDoc: {
+            TipoeCF: '31',
+            eNCF: 'E310000000001',
+            TipoIngresos: '01',
+            TipoPago: '1',
+            TablaFormasPago: {
+              FormaDePago: { FormaPago: '1', MontoPago: '1180.00' },
+            },
+          },
+          Emisor: {
+            RNCEmisor: TAXPAYER_A,
+            RazonSocialEmisor: 'Test Company SRL',
+            DireccionEmisor: 'Av. Winston Churchill 100',
+            FechaEmision: '01-01-2026',
+          },
+          Comprador: {
+            RNCComprador: '40102368',
+            RazonSocialComprador: 'Buyer SA',
+          },
+          Totales: {
+            MontoGravadoTotal: '1000.00',
+            TotalITBIS: '180.00',
+            MontoTotal: '1180.00',
+          },
+        },
+        DetallesItems: {
+          Item: [
+            {
+              NumeroLinea: 1,
+              IndicadorFacturacion: 1,
+              NombreItem: 'Consulting services',
+              IndicadorBienoServicio: 2,
+              CantidadItem: '1.00',
+              PrecioUnitarioItem: '1000.00',
+              MontoItem: '1000.00',
+            },
+          ],
+        },
+      },
+    };
+
+    const response = await auth.api.dgiiEcfSendDocument({
+      body: { json: invoice },
+      headers,
+    });
+    expect(response.replayed).toBe(false);
+    expect(fake.methodNames()).toContain('sendDocument');
+    const sentXml = fake.calls.find((c) => c.method === 'sendDocument')
+      ?.args[0] as string;
+    expect(sentXml).toContain('<TipoeCF>31</TipoeCF>');
+    expect(sentXml).toContain('<eNCF>E310000000001</eNCF>');
+    expect(sentXml).toContain(`<RNCEmisor>${TAXPAYER_A}</RNCEmisor>`);
+
+    const parsed = Transformer.xml2json(sentXml);
+    expect(parsed.isOk()).toBe(true);
+    if (parsed.isOk()) {
+      const tipoeCf = parsed.value.ECF.Encabezado.IdDoc.TipoeCF;
+      const tipoeCfText =
+        typeof tipoeCf === 'object' && tipoeCf !== null && '_text' in tipoeCf
+          ? tipoeCf._text
+          : tipoeCf;
+      expect(tipoeCfText).toBe('31');
+    }
   });
 
   it('rejects an invalid JSON string with DGII_JSON_TRANSFORMATION_FAILED', async () => {

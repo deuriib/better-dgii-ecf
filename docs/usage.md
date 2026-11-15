@@ -285,8 +285,12 @@ The environment is part of the client cache key and is echoed in every response.
 ## Working with JSON invoices
 
 DGII endpoints accept digitally signed XML (`xml: string`), but you can author invoices
-directly as JSON objects or JSON strings. Every document submission endpoint and the
-reconcile endpoint accept either `xml` or `json`.
+directly as strongly typed JSON objects or JSON strings. Every document submission
+endpoint and the reconcile endpoint accept either `xml` or `json`.
+
+You can import `EcfInvoice` (and sub-interfaces like `EcfDocument`, `EcfEncabezado`,
+`EcfTotales`, `EcfItem`) directly from `@deuriib/better-dgii-ecf` or
+`@deuriib/better-dgii-ecf/client` for full IDE autocomplete and type safety:
 
 When `json` is provided:
 
@@ -298,30 +302,67 @@ When `json` is provided:
    organization's PKCS#12 credentials.
 
 ```ts
-// Submit an invoice authored as a JSON object
-const response = await authClient.dgiiEcf.documents({
-  json: {
-    ECF: {
-      Encabezado: {
-        IdDoc: { TipoeCF: '31', eNCF: 'E310000000001' },
-        Emisor: { RNCEmisor: '131123456', RznSocEmis: 'ACME SRL' },
-        Totales: { MontoTotal: '1500.555' },
+import type { EcfInvoice } from '@deuriib/better-dgii-ecf/client';
+
+const invoice: EcfInvoice = {
+  ECF: {
+    Encabezado: {
+      Version: '1.0',
+      IdDoc: {
+        TipoeCF: '31',
+        eNCF: 'E310000000001',
+        TipoIngresos: '01',
+        TipoPago: '1',
+      },
+      Emisor: {
+        RNCEmisor: '131123456',
+        RazonSocialEmisor: 'ACME SRL',
+        DireccionEmisor: 'Av. Winston Churchill 100',
+        FechaEmision: '01-01-2026',
+      },
+      Comprador: { RNCComprador: '40102368', RazonSocialComprador: 'Buyer SA' },
+      Totales: {
+        MontoGravadoTotal: '1000.00',
+        TotalITBIS: '180.00',
+        MontoTotal: '1180.00',
       },
     },
+    DetallesItems: {
+      Item: [
+        {
+          NumeroLinea: 1,
+          IndicadorFacturacion: 1,
+          NombreItem: 'Consulting services',
+          IndicadorBienoServicio: 2,
+          CantidadItem: '1.00',
+          PrecioUnitarioItem: '1000.00',
+          MontoItem: '1000.00',
+        },
+      ],
+    },
   },
-  round: true, // default: true (rounds MontoTotal to 1500.56)
+};
+
+// Submit an invoice authored with typed EcfInvoice
+const response = await authClient.dgiiEcf.documents({
+  json: invoice,
+  round: true, // default: true (rounds monetary values half-up)
   sign: true, // signs the generated XML server-side
 });
 ```
 
-You can also re-export and use `Transformer` directly in your application:
+You can also re-export and use `Transformer` directly in your application. By default,
+`Transformer.xml2json` returns a strongly typed `EcfInvoice`:
 
 ```ts
-import { Transformer } from '@deuriib/better-dgii-ecf';
+import { Transformer, type EcfInvoice } from '@deuriib/better-dgii-ecf';
 
-const xmlResult = Transformer.json2xml(invoiceJson, true);
+const xmlResult = Transformer.json2xml(invoice, true);
 if (xmlResult.isOk()) {
-  console.log(xmlResult.value);
+  const jsonResult = Transformer.xml2json(xmlResult.value);
+  if (jsonResult.isOk()) {
+    const tipoeCF = jsonResult.value.ECF.Encabezado.IdDoc.TipoeCF;
+  }
 }
 ```
 
