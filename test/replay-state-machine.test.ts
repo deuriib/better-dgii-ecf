@@ -10,7 +10,11 @@ import {
   PENDING_SUBMISSION_MESSAGE,
 } from '@deuriib/dgii-ecf';
 import { dgiiEcf, dgiiEcfOrganizationSchema } from '../src/index.js';
-import { replayKeyFor } from '../src/persistence.js';
+import {
+  normalizeDestination,
+  replayKeyFor,
+  trimTrailingSlashes,
+} from '../src/persistence.js';
 import { createFakeEcf, documentXml, TAXPAYER_A } from './helpers.js';
 
 /**
@@ -441,6 +445,17 @@ describe('the replay key carries the scope', () => {
     expect(replayKeyFor({ ...base, destination: 'https://fe.acme.example/' })).toBe(
       replayKeyFor({ ...base, destination: 'https://fe.acme.example' }),
     );
+    // Linear O(n) stripping of many trailing slashes (CodeQL polynomial ReDoS regression test)
+    const slashes = '/'.repeat(2000);
+    expect(trimTrailingSlashes(`https://fe.acme.example${slashes}`)).toBe(
+      'https://fe.acme.example',
+    );
+    expect(normalizeDestination(`HTTPS://FE.ACME.EXAMPLE${slashes}`)).toBe(
+      'https://fe.acme.example',
+    );
+    expect(
+      replayKeyFor({ ...base, destination: `HTTPS://FE.ACME.EXAMPLE${slashes}` }),
+    ).toBe(replayKeyFor({ ...base, destination: 'https://fe.acme.example' }));
     // Same inputs, same key: the guard must be stable across processes.
     expect(replayKeyFor(base)).toBe(key);
   });

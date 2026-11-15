@@ -73,6 +73,32 @@ export interface ReplayKeyInput {
 }
 
 /**
+ * Trims trailing slashes without regular expressions, avoiding polynomial
+ * backtracking (ReDoS) when processing untrusted library inputs.
+ */
+export const trimTrailingSlashes = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47 /* '/' */) {
+    end--;
+  }
+  return value.slice(0, end);
+};
+
+/**
+ * Normalizes a destination identifier or URL by stripping trailing slashes
+ * linearly and converting to lowercase. Returns `undefined` for empty inputs.
+ */
+export const normalizeDestination = (
+  destination: string | null | undefined,
+): string | undefined => {
+  if (destination === undefined || destination === null || destination === '') {
+    return undefined;
+  }
+  const stripped = trimTrailingSlashes(destination);
+  return stripped === '' ? undefined : stripped.toLowerCase();
+};
+
+/**
  * The key the replay guard is looked up by.
  *
  * It carries the environment and the organization, not just the taxpayer: a
@@ -90,8 +116,9 @@ export const replayKeyFor = ({
   destination,
 }: ReplayKeyInput): string => {
   const parts = [environment, organizationId ?? '-', taxPayerId, idempotencyKey];
-  if (destination !== undefined && destination !== null && destination !== '') {
-    parts.push(destination.replace(/\/+$/, '').toLowerCase());
+  const normalizedDest = normalizeDestination(destination);
+  if (normalizedDest !== undefined) {
+    parts.push(normalizedDest);
   }
   return parts.join('\u0000');
 };
@@ -347,12 +374,7 @@ export const createSubmissionStore = (
           { field: 'encf', value: input.encf },
         ],
       });
-      const normalizedDest =
-        input.destination !== undefined &&
-        input.destination !== null &&
-        input.destination !== ''
-          ? input.destination.replace(/\/+$/, '').toLowerCase()
-          : undefined;
+      const normalizedDest = normalizeDestination(input.destination);
 
       // Organization equality is applied here rather than in the query: a
       // single-tenant record has no organization, and "no organization" must
