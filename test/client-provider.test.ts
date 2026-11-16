@@ -134,6 +134,35 @@ describe('createClientProvider', () => {
     expect(provider.size).toBe(0);
   });
 
+  // #34: cache keys carry the normalized id, so an operator typing the
+  // formatted RNC must drop the same entry.
+  it('invalidates a formatted taxpayer id', async () => {
+    const resolve = vi.fn(material);
+    const provider = createClientProvider({ credentials: resolve });
+    await provider.get(scope(TAXPAYER_A));
+    await provider.get(scope(TAXPAYER_B));
+    expect(resolve).toHaveBeenCalledTimes(2);
+
+    provider.invalidate('1-31-12345-6');
+    expect(provider.size).toBe(1);
+
+    await provider.get(scope(TAXPAYER_A));
+    expect(resolve).toHaveBeenCalledTimes(3);
+    await provider.get(scope(TAXPAYER_B));
+    expect(resolve).toHaveBeenCalledTimes(3);
+  });
+
+  it('leaves the cache alone when the id is not cached', async () => {
+    const provider = createClientProvider({ credentials: material });
+    await provider.get(scope(TAXPAYER_A));
+
+    provider.invalidate('2-22-22222-2');
+    expect(provider.size).toBe(1);
+
+    provider.invalidate();
+    expect(provider.size).toBe(0);
+  });
+
   it('forwards the timeout to the built client', async () => {
     const provider = createClientProvider({
       credentials: () => fakeCredentials,
